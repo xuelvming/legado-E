@@ -1,3 +1,19 @@
+# HunReader API status
+
+HunReader uses `io.github.hunterxue.hunreader` (or `.debug` for debug builds).
+The external ReaderProvider API described below is **disabled** in this fork.
+The internal FileProvider is retained for user-initiated file sharing, with the
+authority `${applicationId}.fileProvider`.
+
+The optional local web server remains available and is off by default.
+Android import links use `hunreader://import/{path}?src={url}`; debug builds
+use `hunreader-debug://`. HunReader does not register the upstream `legado://`
+or `yuedu://` schemes. Legacy links opened explicitly inside HunReader remain
+supported for compatibility with user-imported rules.
+
+The following is retained upstream API documentation, not a promise that the
+disabled content-provider API is available in HunReader.
+
 # 阅读[API](/app/src/main/java/io/legado/app/api/controller)
 
 ## 对于[Web](/app/src/main/java/io/legado/app/web/)的配置

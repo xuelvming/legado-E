@@ -786,7 +786,7 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
         private fun shouldOverrideUrlLoading(url: Uri): Boolean {
             return when (url.scheme) {
                 "http", "https" -> false
-                "legado", "yuedu" -> {
+                "hunreader", "hunreader-debug", "legado", "yuedu" -> {
                     startActivity<OnLineImportActivity> {
                         data = url
                     }

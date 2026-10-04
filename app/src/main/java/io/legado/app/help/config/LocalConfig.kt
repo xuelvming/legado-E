@@ -59,38 +59,14 @@ by appCtx.getSharedPreferences("local", Context.MODE_PRIVATE) {
     val ruleHelpVersionIsLast: Boolean
         get() = isLastVersion(1, "ruleHelpVersion")
 
-    val needUpHttpTTS: Boolean
-        get() = !isLastVersion(6, "httpTtsVersion")
-
     val needUpTxtTocRule: Boolean
         get() = !isLastVersion(3, "txtTocRuleVersion")
-
-    val needUpRssSources: Boolean
-        get() = !isLastVersion(6, "rssSourceVersion")
-
-    val needUpDictRule: Boolean
-        get() = !isLastVersion(2, "needUpDictRule")
 
     var versionCode
         get() = getLong(versionCodeKey, 0)
         set(value) {
             edit { putLong(versionCodeKey, value) }
         }
-    var lastCheckUpdate: Long
-        get() = getLong("lastCheckUpdate", 0)
-        set(value) {
-            putLong("lastCheckUpdate", value)
-        }
-
-    val isFirstOpenApp: Boolean
-        get() {
-            val value = getBoolean("firstOpen", true)
-            if (value) {
-                edit { putBoolean("firstOpen", false) }
-            }
-            return value
-        }
-
     @Suppress("SameParameterValue")
     private fun isLastVersion(
         lastVersion: Int,

@@ -18,3 +18,14 @@ package-lock.json
 .kotlin/
 .cxx
 .vscode
+
+# Private signing material and user-owned service configurations.
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.key
+*signing*.properties
+.hunreader/
+.private/
+google-services.json

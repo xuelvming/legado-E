@@ -1,0 +1,36 @@
+name: Build HunReader
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Build and test without a release key
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:testAppDebugUnitTest :app:assembleAppDebug :app:assembleAppDebugAndroidTest --no-daemon
+      - name: Package corresponding source
+        run: git archive --format=zip --output=hunreader-source.zip HEAD
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hunreader-debug-${{ github.sha }}
+          path: |
+            app/build/outputs/apk/app/debug/*.apk
+            app/build/outputs/apk/androidTest/app/debug/*.apk
+            hunreader-source.zip
+          if-no-files-found: error

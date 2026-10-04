@@ -1,6 +1,7 @@
 package io.legado.app.help
 
 import androidx.annotation.Keep
+import io.legado.app.R
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.model.analyzeRule.AnalyzeRule
 import io.legado.app.model.analyzeRule.AnalyzeRule.Companion.setCoroutineContext
@@ -11,7 +12,6 @@ import io.legado.app.utils.GSON
 import io.legado.app.utils.compress.ZipUtils
 import io.legado.app.utils.createFileReplace
 import io.legado.app.utils.externalCache
-import io.legado.app.utils.fromJsonArray
 import io.legado.app.utils.fromJsonObject
 import kotlinx.coroutines.currentCoroutineContext
 import splitties.init.appCtx
@@ -70,16 +70,8 @@ object DirectLinkUpload {
         return downloadUrl
     }
 
-    val defaultRules: List<Rule> by lazy {
-        val json = String(
-            appCtx.assets.open("defaultData${File.separator}directLinkUpload.json")
-                .readBytes()
-        )
-        GSON.fromJsonArray<Rule>(json).getOrThrow()
-    }
-
     fun getRule(): Rule {
-        return getConfig() ?: defaultRules[0]
+        return getConfig() ?: Rule("", "", "")
     }
 
     fun getConfig(): Rule? {
@@ -96,7 +88,7 @@ object DirectLinkUpload {
     }
 
     fun getSummary(): String {
-        return getRule().summary
+        return getRule().summary.ifBlank { appCtx.getString(R.string.service_not_configured) }
     }
 
     fun getExpiryDate(): Int {

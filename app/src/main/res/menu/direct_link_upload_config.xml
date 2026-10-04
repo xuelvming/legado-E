@@ -12,9 +12,4 @@
         android:title="@string/paste_rule"
         app:showAsAction="never" />
 
-    <item
-        android:id="@+id/menu_import_default"
-        android:title="@string/import_default_rule"
-        app:showAsAction="never" />
-
 </menu>

@@ -38,7 +38,7 @@ import java.io.File
  * webDav初始化会访问网络,不要放到主线程
  */
 object AppWebDav {
-    private const val defaultWebDavUrl = "https://dav.jianguoyun.com/dav/"
+    private const val jianGuoYunUrl = "https://dav.jianguoyun.com/dav/"
     private val bookProgressUrl get() = "${rootWebDavUrl}bookProgress/"
     private val exportsWebDavUrl get() = "${rootWebDavUrl}books/"
     private val bgWebDavUrl get() = "${rootWebDavUrl}background/"
@@ -50,7 +50,9 @@ object AppWebDav {
 
     val isOk get() = authorization != null
 
-    val isJianGuoYun get() = rootWebDavUrl.startsWith(defaultWebDavUrl, true)
+    val isJianGuoYun
+        get() = appCtx.getPrefString(PreferKey.webDavUrl)?.trim()
+            ?.startsWith(jianGuoYunUrl, true) == true
 
     init {
         runBlocking {
@@ -61,7 +63,10 @@ object AppWebDav {
     private val rootWebDavUrl: String
         get() {
             val configUrl = appCtx.getPrefString(PreferKey.webDavUrl)?.trim()
-            var url = if (configUrl.isNullOrEmpty()) defaultWebDavUrl else configUrl
+            if (configUrl.isNullOrEmpty()) {
+                throw NoStackTraceException(appCtx.getString(R.string.webdav_endpoint_required))
+            }
+            var url: String = configUrl
             if (!url.endsWith("/")) url = "${url}/"
             AppConfig.webDavDir?.trim()?.let {
                 if (it.isNotEmpty()) {
@@ -88,6 +93,8 @@ object AppWebDav {
                 defaultBookWebDav = RemoteBookWebDav(rootBooksUrl, mAuthorization)
                 authorization = mAuthorization
             }
+        }.onFailure {
+            AppLog.put("WebDAV configuration failed\n${it.localizedMessage}", it, true)
         }
     }
 

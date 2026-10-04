@@ -212,7 +212,7 @@ class BackupConfigFragment : PreferenceFragment(),
                 }
 
             PreferKey.webDavDir -> preference.summary = when (value) {
-                null -> "legado"
+                null -> "hunreader"
                 else -> value
             }
 

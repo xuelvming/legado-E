@@ -548,7 +548,7 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
 
     val replaceEnableDefault get() = appCtx.getPrefBoolean(PreferKey.replaceEnableDefault, true)
 
-    val webDavDir get() = appCtx.getPrefString(PreferKey.webDavDir, "legado")
+    val webDavDir get() = appCtx.getPrefString(PreferKey.webDavDir, "hunreader")
 
     val webDavDeviceName get() = appCtx.getPrefString(PreferKey.webDavDeviceName, Build.MODEL)
 
@@ -570,7 +570,6 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
 
     val defaultHomePage get() = appCtx.getPrefString(PreferKey.defaultHomePage, "bookshelf")
 
-    val updateToVariant get() = appCtx.getPrefString(PreferKey.updateToVariant, "default_version")
 
     val streamReadAloudAudio get() = appCtx.getPrefBoolean(PreferKey.streamReadAloudAudio, false)
 
@@ -821,6 +820,4 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
             appCtx.putPrefBoolean(PreferKey.welcomeShowIconDark, value)
         }
 
-    val autoUpdateVariant get() = appCtx.getPrefBoolean("autoUpdateVariant", true)
 }
-

@@ -44,7 +44,6 @@ import io.legado.app.ui.main.bookshelf.style2.BookshelfFragment2
 import io.legado.app.ui.main.explore.ExploreFragment
 import io.legado.app.ui.main.my.MyFragment
 import io.legado.app.ui.main.rss.RssFragment
-import io.legado.app.ui.widget.dialog.TextDialog
 import io.legado.app.ui.widget.text.BadgeView
 import io.legado.app.utils.isCreated
 import io.legado.app.utils.navigationBarHeight
@@ -60,15 +59,12 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import splitties.views.bottomPadding
 import kotlin.coroutines.resume
-import io.legado.app.help.update.AppUpdate
-import io.legado.app.ui.about.UpdateDialog
 import io.legado.app.ui.association.ImportDictRuleDialog
 import io.legado.app.ui.association.ImportHttpTtsDialog
 import io.legado.app.ui.association.ImportTxtTocRuleDialog
 import io.legado.app.utils.StringUtils
 import io.legado.app.utils.clearClip
 import io.legado.app.utils.getClipText
-import kotlin.time.Duration.Companion.hours
 
 /**
  * 主界面
@@ -132,8 +128,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         lifecycleScope.launch {
             //隐私协议
             if (!privacyPolicy()) return@launch
-            //版本更新
-            upVersion()
+            LocalConfig.versionCode = appInfo.versionCode
             //设置本地密码
             setLocalPassword()
             notifyAppCrash()
@@ -152,9 +147,6 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
                 binding.viewPagerMain.postDelayed(2000) {
                     viewModel.upAllBookToc()
                 }
-            }
-            binding.viewPagerMain.postDelayed(3000) {
-                viewModel.postLoad()
             }
         }
     }
@@ -231,45 +223,6 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
                 finish()
                 block.resume(false)
             }
-        }
-    }
-
-    /**
-     * 版本更新日志
-     */
-    private suspend fun upVersion() = suspendCancellableCoroutine sc@{ block ->
-        if (LocalConfig.versionCode == appInfo.versionCode) {
-            if (AppConfig.autoUpdateVariant) {
-                if (LocalConfig.lastCheckUpdate + 24.hours.inWholeMilliseconds < System.currentTimeMillis()) {
-                    AppUpdate.giteeUpdate.check(lifecycleScope)
-                        .onSuccess {
-                            showDialogFragment(
-                                UpdateDialog(it)
-                            )
-                        }
-                    LocalConfig.lastCheckUpdate = System.currentTimeMillis()
-                }
-            }
-            block.resume(null)
-            return@sc
-        }
-        LocalConfig.versionCode = appInfo.versionCode
-        if (LocalConfig.isFirstOpenApp) {
-            val help = String(assets.open("web/help/md/appHelp.md").readBytes())
-            val dialog = TextDialog(getString(R.string.help), help, TextDialog.Mode.MD)
-            dialog.setOnDismissListener {
-                block.resume(null)
-            }
-            showDialogFragment(dialog)
-        } else if (!BuildConfig.DEBUG) {
-            val log = String(assets.open("updateLog.md").readBytes())
-            val dialog = TextDialog(getString(R.string.update_log), log, TextDialog.Mode.MD)
-            dialog.setOnDismissListener {
-                block.resume(null)
-            }
-            showDialogFragment(dialog)
-        } else {
-            block.resume(null)
         }
     }
 

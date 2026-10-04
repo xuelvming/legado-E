@@ -1147,7 +1147,9 @@ interface JsExtensions : JsEncodeUtils {
     fun openUrl(url: String, mimeType: String? = null) {
         require(url.length < 64 * 1024) { "openUrl parameter url too long" }
         rhinoContextOrNull?.ensureActive()
-        if (url.startsWith("legado://") || url.startsWith("yuedu://")) {
+        if (url.startsWith("hunreader://") || url.startsWith("hunreader-debug://")
+            || url.startsWith("legado://") || url.startsWith("yuedu://")
+        ) {
             appCtx.startActivity<OnLineImportActivity> {
                 data = url.toUri()
             }

@@ -43,8 +43,8 @@ import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.config.ThemeConfig.applyDayNight
 import io.legado.app.help.config.ThemeConfig.applyDayNightInit
 import io.legado.app.help.coroutine.Coroutine
-import io.legado.app.help.http.Cronet
 import io.legado.app.help.http.ObsoleteUrlFactory
+import io.legado.app.help.http.Cronet
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.help.rhino.NativeBaseSource
 import io.legado.app.help.source.SourceHelp
@@ -81,8 +81,9 @@ class App : Application() {
             LogUtils.init(this@App)
             LogUtils.d("App", "onCreate")
             LogUtils.logDeviceInfo()
-            //预下载Cronet so
-            Cronet.preDownload()
+            if (AppConfig.isCronet) {
+                Cronet.preDownload()
+            }
             createNotificationChannels()
             LiveEventBus.config()
                 .lifecycleObserverAlwaysActive(true)

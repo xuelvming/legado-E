@@ -510,7 +510,7 @@ class BookInfoActivity :
                 val uri = it.url
                 return when (uri.scheme) {
                     "http", "https" -> false
-                    "legado", "yuedu" -> {
+                    "hunreader", "hunreader-debug", "legado", "yuedu" -> {
                         startActivity<OnLineImportActivity> {
                             data = uri
                         }

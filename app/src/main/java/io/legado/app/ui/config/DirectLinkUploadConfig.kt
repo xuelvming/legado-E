@@ -10,7 +10,6 @@ import io.legado.app.base.BaseDialogFragment
 import io.legado.app.databinding.DialogDirectLinkUploadConfigBinding
 import io.legado.app.help.DirectLinkUpload
 import io.legado.app.lib.dialogs.alert
-import io.legado.app.lib.dialogs.selector
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.utils.GSON
 import io.legado.app.utils.applyTint
@@ -55,7 +54,6 @@ class DirectLinkUploadConfig : BaseDialogFragment(R.layout.dialog_direct_link_up
 
     override fun onMenuItemClick(item: MenuItem?): Boolean {
         when (item?.itemId) {
-            R.id.menu_import_default -> importDefault()
             R.id.menu_copy_rule -> getRule()?.let { rule ->
                 requireContext().sendToClip(GSON.toJson(rule))
             }
@@ -97,12 +95,6 @@ class DirectLinkUploadConfig : BaseDialogFragment(R.layout.dialog_direct_link_up
             return null
         }
         return DirectLinkUpload.Rule(uploadUrl, downloadUrlRule, summary, compress)
-    }
-
-    private fun importDefault() {
-        requireContext().selector(DirectLinkUpload.defaultRules) { _, rule, _ ->
-            upView(rule)
-        }
     }
 
     private fun test() {

@@ -763,7 +763,7 @@ class ReadRssActivity : VMBaseActivity<ActivityRssReadBinding, ReadRssViewModel>
         private fun handleCommonSchemes(url: Uri): Boolean {
             return when (url.scheme) {
                 "http", "https" -> false
-                "legado", "yuedu" -> {
+                "hunreader", "hunreader-debug", "legado", "yuedu" -> {
                     startActivity<OnLineImportActivity> { data = url }
                     true
                 }

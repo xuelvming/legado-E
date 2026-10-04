@@ -478,7 +478,7 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
         private fun shouldOverrideUrlLoading(url: Uri): Boolean {
             return when (url.scheme) {
                 "http", "https" -> false
-                "legado", "yuedu" -> {
+                "hunreader", "hunreader-debug", "legado", "yuedu" -> {
                     startActivity<OnLineImportActivity> {
                         data = url
                     }

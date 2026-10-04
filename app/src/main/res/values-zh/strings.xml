@@ -1,6 +1,9 @@
 <resources>
     <!--App-->
-    <string name="app_name">阅读</string>
+    <string name="hunreader_description">基于 Legado 和 Legado-E 的个人阅读器。不提供应用更新或开发者遥测服务，在线服务由您自行配置。</string>
+    <string name="hunreader_web_service">HunReader 网页服务</string>
+    <string name="service_not_configured">未配置</string>
+    <string name="webdav_endpoint_required">请先配置您自己的 WebDAV 服务器地址。</string>
     <string name="app_name_a">阅读·A</string>
     <string name="app_name_s">阅读Plus</string>
     <string name="receiving_shared_label">阅读·搜索</string>

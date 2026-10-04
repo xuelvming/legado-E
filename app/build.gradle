@@ -4,14 +4,12 @@ plugins {
 //    id 'kotlin-parcelize'
 //    //id 'kotlin-kapt'
 //    id 'com.google.devtools.ksp'
-//    id "com.google.gms.google-services"
 
     alias libs.plugins.android.application
     alias libs.plugins.kotlin.android
     alias libs.plugins.kotlin.parcelize
     alias libs.plugins.room
     alias libs.plugins.ksp
-    alias libs.plugins.google.services
 }
 apply from: 'download.gradle'
 
@@ -19,9 +17,36 @@ static def releaseTime() {
     return new Date().format("yy.MMddHH", TimeZone.getTimeZone("GMT+8"))
 }
 
-def name = "legado"
+def name = "hunreader"
 def version = "3." + releaseTime()
 def gitCommits = Integer.parseInt('git rev-list HEAD --count'.execute().text.trim())
+
+def signingPropertiesFile = file(System.getenv("HUNREADER_SIGNING_PROPERTIES")
+        ?: "${System.getProperty('user.home')}/.hunreader/signing.properties")
+def signingProperties = new Properties()
+if (signingPropertiesFile.exists()) {
+    signingPropertiesFile.withReader("UTF-8") { signingProperties.load(it) }
+    ["storeFile", "storePassword", "keyAlias", "keyPassword"].each { key ->
+        if (!signingProperties.getProperty(key)?.trim()) {
+            throw new GradleException("Missing ${key} in HunReader signing properties.")
+        }
+    }
+}
+
+def validateHunReaderSigning = tasks.register("validateHunReaderSigning") {
+    doLast {
+        if (!signingPropertiesFile.isFile()) {
+            throw new GradleException("HunReader release signing is not configured. "
+                    + "Run scripts/New-HunReaderSigningKey.ps1 or set HUNREADER_SIGNING_PROPERTIES. "
+                    + "Debug builds do not need the release key.")
+        }
+    }
+}
+tasks.configureEach { task ->
+    if (task.name == "preAppReleaseBuild") {
+        dependsOn validateHunReaderSigning
+    }
+}
 
 android {
     compileSdk = compile_sdk_version
@@ -33,12 +58,12 @@ android {
     }
 
     signingConfigs {
-        if (project.hasProperty("RELEASE_STORE_FILE")) {
-            myConfig {
-                storeFile file(RELEASE_STORE_FILE)
-                storePassword RELEASE_STORE_PASSWORD
-                keyAlias RELEASE_KEY_ALIAS
-                keyPassword RELEASE_KEY_PASSWORD
+        if (signingPropertiesFile.isFile()) {
+            hunreader {
+                storeFile file(signingProperties.getProperty("storeFile"))
+                storePassword signingProperties.getProperty("storePassword")
+                keyAlias signingProperties.getProperty("keyAlias")
+                keyPassword signingProperties.getProperty("keyPassword")
                 enableV1Signing = true
                 enableV2Signing = true
                 enableV3Signing = true
@@ -47,7 +72,9 @@ android {
         }
     }
     defaultConfig {
-        applicationId "io.legado.app"
+        applicationId "io.github.hunterxue.hunreader"
+        manifestPlaceholders.put("app_name", "@string/app_name")
+        manifestPlaceholders.put("import_scheme", "hunreader")
         minSdk 21
         targetSdk 36
         versionCode 10000 + gitCommits
@@ -74,16 +101,8 @@ android {
     }
     buildTypes {
         release {
-            if (project.hasProperty("RELEASE_STORE_FILE")) {
-                signingConfig signingConfigs.myConfig
-            }
-            applicationIdSuffix '.release'
-            if (getApplicationIdSuffix() == '.releaseA') {
-                manifestPlaceholders.put("app_name", "@string/app_name_a")
-            } else if (getApplicationIdSuffix() == '.releaseS') {
-                manifestPlaceholders.put("app_name", "@string/app_name_s")
-            } else {
-                manifestPlaceholders.put("app_name", "@string/app_name")
+            if (signingPropertiesFile.isFile()) {
+                signingConfig signingConfigs.hunreader
             }
 
             minifyEnabled true
@@ -91,10 +110,8 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'cronet-proguard-rules.pro'
         }
         debug {
-            if (project.hasProperty("RELEASE_STORE_FILE")) {
-                signingConfig signingConfigs.myConfig
-            }
-            manifestPlaceholders.put("app_name", "@string/app_name")
+            manifestPlaceholders.put("app_name", "@string/app_name_debug")
+            manifestPlaceholders.put("import_scheme", "hunreader-debug")
 
             applicationIdSuffix '.debug'
             versionNameSuffix 'debug'
@@ -107,14 +124,13 @@ android {
     productFlavors {
         app {
             dimension "mode"
-            manifestPlaceholders.put("APP_CHANNEL_VALUE", "app")
         }
     }
 
     android.applicationVariants.configureEach { variant ->
         variant.outputs.configureEach {
             def flavor = variant.productFlavors[0].name
-            outputFileName = "${name}_${flavor}_${defaultConfig.versionName}.apk"
+            outputFileName = "${name}_${flavor}_${variant.buildType.name}_${defaultConfig.versionName}.apk"
         }
     }
 
@@ -290,11 +306,6 @@ dependencies {
     //加解密类库,有些书源使用
     //noinspection GradleDependency,GradlePackageUpdate
     implementation(libs.hutool.crypto)
-
-    //firebase, 崩溃统计和性能统计
-    implementation platform(libs.firebase.bom)
-    implementation libs.firebase.analytics
-    implementation libs.firebase.perf
 
     implementation libs.glide.recyclerview
 
