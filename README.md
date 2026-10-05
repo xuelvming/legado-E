@@ -40,72 +40,30 @@ is still available. Existing user-created TTS entries are not reset on upgrades.
 Protect exported configurations and backups: they may contain credentials.
 See [privacy policy](app/src/main/assets/privacyPolicy.md) and [API status](api.md).
 
-## Build
+## Development
 
-Install JDK 17 and Android SDK platform 36 / build tools, and configure
-`ANDROID_HOME` or an ignored `local.properties` with `sdk.dir`.
-Use the checked-in Gradle wrapper; do not change Gradle versions to bypass errors.
+See [Developing HunReader](DEVELOPING.md) for:
 
-```powershell
-.\gradlew.bat :app:assembleAppDebug
-.\gradlew.bat :app:testAppDebugUnitTest
-```
+- JDK, Android SDK, Platform-Tools, and ADB installation and locations
+- `JAVA_HOME`, `ANDROID_HOME`, and user `PATH` configuration
+- debug builds and JVM/device tests
+- private release-key generation, release builds, and signature verification
+- installing and troubleshooting APKs on a physical Android device with ADB
 
-Debug builds use the normal local Android debug key, never the private release key.
-CI debug APKs are disposable test builds, not a stable distribution channel.
-
-### Private release signing (Windows)
-
-Run once:
+Quick start after the prerequisites are configured:
 
 ```powershell
-.\scripts\New-HunReaderSigningKey.ps1
+.\gradlew.bat :app:testAppDebugUnitTest :app:assembleAppDebug
+adb install -r (Get-ChildItem ".\app\build\outputs\apk\app\debug\*.apk" |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1).FullName
 ```
 
-The script generates a 4096-bit RSA PKCS12 key with about 50 years of validity.
-It refuses to overwrite existing material or generate it inside the repository,
-and restricts the directory to the current Windows user and SYSTEM.
+Debug builds and CI artifacts use a disposable debug signer. Public or long-lived
+installations must use the private release process documented in
+[DEVELOPING.md](DEVELOPING.md).
 
-Files under `%USERPROFILE%\.hunreader`:
-
-* `hunreader-release.p12`: **private signing key**.
-* `signing.properties`: **private passwords**, alias and absolute keystore path.
-* `hunreader-signing.crt`: public certificate; safe to share.
-
-The password is cryptographically random and is not printed. Open the private
-properties file locally to save it in your password manager. Keep encrypted
-backups of both the keystore and credentials; losing the key prevents normal
-updates of existing installs. Do not upload these files or attach them to a PR.
-Windows ACLs are access controls, not encryption at rest.
-
-Release builds read that properties file by default. For another protected
-location, set `HUNREADER_SIGNING_PROPERTIES` to its absolute path. Its fields are
-`storeFile`, `storePassword`, `keyAlias` and `keyPassword`; use escaped backslashes
-in Java properties paths. Private key formats and signing properties are also
-ignored by Git as a second safeguard.
-
-```powershell
-.\gradlew.bat :app:assembleAppRelease
-```
-
-A release build without signing configuration fails explicitly: it never silently
-uses an upstream/debug key or emits a supposedly distributable unsigned release.
-Build from full Git history because `versionCode` is derived from commit count.
-
-## Validation and distribution
-
-`HunReaderConfigurationTest` checks manifest identities/permissions, removed
-presets and preserved TTS import data. `HunReaderDeviceTest` additionally checks
-the installed package/providers, import routing and packaged defaults:
-
-```powershell
-.\gradlew.bat :app:connectedAppDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=io.legado.app.HunReaderDeviceTest"
-```
-
-Before distributing a release, inspect its application ID and signing certificate
-with Android build tools (`aapt dump badging` and `apksigner verify --print-certs`),
-then smoke-test local EPUB/TXT reading and your own TTS endpoint. TTS verification
-with real credentials is deliberately a local, user-controlled test.
+## Distribution
 
 For every APK you share, provide the exact corresponding source and build scripts
 under GPLv3, keep license/attribution notices, and identify your modifications.
