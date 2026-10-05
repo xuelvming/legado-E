@@ -546,6 +546,17 @@ version on a physical device:
 An APK build or an automated receiver test alone does not establish compatibility
 with a particular Eudic release. Record untested device scenarios explicitly.
 
+### TTS paragraph emphasis smoke test
+
+- In read-aloud settings, test text color, bold, and solid/dashed underline
+  independently and in combination. Confirm only the current paragraph changes.
+- Confirm pause and stop clear the emphasis, and that paragraph and page
+  transitions do not leave stale emphasis behind.
+- Test TXT and EPUB content in scrolling and paginated modes, including links,
+  search results, custom fonts, day/night themes, and E-ink mode.
+- With bold enabled, confirm line breaks, pagination, text selection bounds, and
+  reading position remain unchanged as TTS advances.
+
 ## 10. Distribution checklist
 
 Before sharing an APK:

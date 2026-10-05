@@ -3,8 +3,9 @@ package io.legado.app.ui.book.read.page.entities.column
 import android.graphics.Canvas
 import android.os.Build
 import androidx.annotation.Keep
+import io.legado.app.help.PaintPool
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ReadBookConfig
-import io.legado.app.lib.theme.ThemeStore
 import io.legado.app.ui.book.read.page.ContentTextView
 import io.legado.app.ui.book.read.page.entities.TextLine
 import io.legado.app.ui.book.read.page.entities.TextLine.Companion.emptyTextLine
@@ -48,7 +49,9 @@ data class TextColumn(
         } else {
             ChapterProvider.contentPaint
         }
-        val textColor = if (textLine.isReadAloud || isSearchResult) {
+        val textColor = if (isSearchResult ||
+            textLine.isReadAloud && AppConfig.ttsHighlightColor
+        ) {
             ReadBookConfig.textAccentColor
         } else {
             ReadBookConfig.textColor
@@ -56,13 +59,24 @@ data class TextColumn(
         if (textPaint.color != textColor) {
             textPaint.color = textColor
         }
+        val drawPaint = if (textLine.isReadAloud && AppConfig.ttsHighlightBold) {
+            PaintPool.obtain().also {
+                it.set(textPaint)
+                it.isFakeBoldText = true
+            }
+        } else {
+            textPaint
+        }
         val y = textLine.lineBase - textLine.lineTop
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             val letterSpacing = textPaint.letterSpacing * textPaint.textSize
             val letterSpacingHalf = letterSpacing * 0.5f
-            canvas.drawText(charData, start + letterSpacingHalf, y, textPaint)
+            canvas.drawText(charData, start + letterSpacingHalf, y, drawPaint)
         } else {
-            canvas.drawText(charData, start, y, textPaint)
+            canvas.drawText(charData, start, y, drawPaint)
+        }
+        if (drawPaint !== textPaint) {
+            PaintPool.recycle(drawPaint)
         }
         if (selected) {
             canvas.drawRect(start, 0f, end, textLine.height, view.selectedPaint)

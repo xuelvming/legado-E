@@ -112,6 +112,34 @@ class HunReaderConfigurationTest {
     }
 
     @Test
+    fun readAloudAppearanceIsScopedToTheCurrentParagraph() {
+        val preferences = elements("res/xml/pref_config_aloud.xml", "*")
+        fun preference(key: String) = preferences.single {
+            it.getAttributeNS(androidNamespace, "key") == key
+        }
+        assertEquals(
+            "true",
+            preference(PreferKey.ttsHighlightColor)
+                .getAttributeNS(androidNamespace, "defaultValue")
+        )
+        assertEquals(
+            "false",
+            preference(PreferKey.ttsHighlightBold)
+                .getAttributeNS(androidNamespace, "defaultValue")
+        )
+        assertEquals(
+            "0",
+            preference(PreferKey.ttsHighlightUnderline)
+                .getAttributeNS(androidNamespace, "defaultValue")
+        )
+        assertFalse(
+            elements("res/layout/dialog_read_bg_text.xml", "*").any {
+                it.getAttributeNS(androidNamespace, "id").endsWith("/sp_underline")
+            }
+        )
+    }
+
+    @Test
     fun textSelectionUsesNarrowPackageVisibility() {
         val queries = elements("AndroidManifest.xml", "queries").single()
         val intents = queries.getElementsByTagName("intent")

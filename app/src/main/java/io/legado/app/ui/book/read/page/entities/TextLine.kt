@@ -171,8 +171,8 @@ data class TextLine(
             }
         }
 
-        // 墨水屏模式下的朗读和搜索下划线
-        if (AppConfig.isEInkMode && (isReadAloud || searchResultColumnCount > 0)) {
+        // 墨水屏模式下的搜索下划线
+        if (AppConfig.isEInkMode && searchResultColumnCount > 0) {
             val underlinePaint = PaintPool.obtain()
             underlinePaint.set(ChapterProvider.contentPaint)
             underlinePaint.strokeWidth = 1.dpToPx().toFloat()
@@ -181,9 +181,10 @@ data class TextLine(
             PaintPool.recycle(underlinePaint)
         }
 
-        val underlineMode = ReadBookConfig.underlineMode
+        if (!isReadAloud) return
+        val underlineMode = AppConfig.ttsHighlightUnderline
         if (underlineMode == 0) return
-        if (!isImage && !isHtml && ReadBook.book?.isImage != true) {
+        if (!isImage && ReadBook.book?.isImage != true) {
             drawUnderline(canvas, underlineMode)
         }
     }
@@ -195,7 +196,7 @@ data class TextLine(
         } else {
             ChapterProvider.contentPaint
         }
-        val textColor = if (isReadAloud) {
+        val textColor = if (isReadAloud && AppConfig.ttsHighlightColor) {
             ReadBookConfig.textAccentColor
         } else {
             ReadBookConfig.textColor
@@ -212,6 +213,9 @@ data class TextLine(
         }
         if (wordSpacing != 0f) {
             paint.wordSpacing = wordSpacing
+        }
+        if (isReadAloud && AppConfig.ttsHighlightBold) {
+            paint.isFakeBoldText = true
         }
         val offsetX = if (atLeastApi35) letterSpacingHalf else extraLetterSpacingOffsetX
         canvas.drawText(text, indentSize, text.length, startX + offsetX, lineBase - lineTop, paint)

@@ -354,6 +354,31 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
             appCtx.putPrefInt(PreferKey.ttsTimer, value)
         }
 
+    val ttsHighlightColor: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.ttsHighlightColor, true)
+
+    val ttsHighlightBold: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.ttsHighlightBold)
+
+    val ttsHighlightUnderline: Int
+        get() {
+            val preferences = appCtx.defaultSharedPreferences
+            return if (preferences.contains(PreferKey.ttsHighlightUnderline)) {
+                preferences.getString(PreferKey.ttsHighlightUnderline, "0")?.toIntOrNull() ?: 0
+            } else {
+                ReadBookConfig.underlineMode
+            }
+        }
+
+    fun migrateTtsHighlightUnderline() {
+        val preferences = appCtx.defaultSharedPreferences
+        if (!preferences.contains(PreferKey.ttsHighlightUnderline)) {
+            preferences.edit {
+                putString(PreferKey.ttsHighlightUnderline, ReadBookConfig.underlineMode.toString())
+            }
+        }
+    }
+
     val speechRatePlay: Int get() = if (ttsFlowSys) defaultSpeechRate else ttsSpeechRate
 
     var chineseConverterType: Int

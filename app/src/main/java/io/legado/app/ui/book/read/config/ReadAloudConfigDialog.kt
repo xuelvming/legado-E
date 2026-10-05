@@ -79,6 +79,7 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
             }
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+            AppConfig.migrateTtsHighlightUnderline()
             addPreferencesFromResource(R.xml.pref_config_aloud)
             upSpeakEngineSummary()
             findPreference<SwitchPreference>(PreferKey.pauseReadAloudWhilePhoneCalls)?.let {
@@ -118,6 +119,12 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
                     if (BaseReadAloudService.isRun) {
                         postEvent(EventBus.MEDIA_BUTTON, false)
                     }
+                }
+
+                PreferKey.ttsHighlightColor,
+                PreferKey.ttsHighlightBold,
+                PreferKey.ttsHighlightUnderline -> {
+                    postEvent(EventBus.UP_CONFIG, arrayListOf(6, 9, 11))
                 }
 
                 PreferKey.ignoreAudioFocus -> {

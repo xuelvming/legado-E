@@ -6,6 +6,7 @@ import android.text.TextPaint
 import androidx.annotation.Keep
 import io.legado.app.help.TextViewTagHandler.Companion.HR_PLACE_CHAR
 import io.legado.app.help.TextViewTagHandler.Companion.HR_PLACE_STR
+import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.ui.book.read.page.ContentTextView
 import io.legado.app.ui.book.read.page.entities.TextLine
@@ -56,6 +57,7 @@ data class TextHtmlColumn(
 
     override fun draw(view: ContentTextView, canvas: Canvas) {
         val y = textLine.lineBase - textLine.lineTop
+        textPaint.isFakeBoldText = textLine.isReadAloud && AppConfig.ttsHighlightBold
         if (linkUrl != null) {
             textPaint.run {
                 color = ReadBookConfig.textAccentColor
@@ -65,7 +67,9 @@ data class TextHtmlColumn(
             return
         }
         textPaint.run {
-            color = if (textLine.isReadAloud || isSearchResult) {
+            color = if (isSearchResult ||
+                textLine.isReadAloud && AppConfig.ttsHighlightColor
+            ) {
                 ReadBookConfig.textAccentColor
             } else {
                 mTextColor ?: ReadBookConfig.textColor

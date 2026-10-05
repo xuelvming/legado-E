@@ -11,6 +11,8 @@ import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.content.pm.ResolveInfo
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
@@ -30,6 +32,7 @@ import io.legado.app.model.ReadBook
 import io.legado.app.ui.book.read.ReadBookActivity
 import io.legado.app.ui.book.read.ReadBookViewModel
 import io.legado.app.ui.book.read.page.ReadView
+import io.legado.app.ui.book.read.page.ContentTextView
 import io.legado.app.ui.book.read.page.entities.TextLine
 import io.legado.app.ui.book.read.page.entities.TextPage
 import io.legado.app.ui.book.read.page.entities.column.TextColumn
@@ -60,7 +63,9 @@ class TextSelectionAppDeviceTest {
     )
     private val keys = listOf(
         PreferKey.selectionApp, PreferKey.autoOpenSelectionApp,
-        PreferKey.expandTextMenu, PreferKey.textSelectAble
+        PreferKey.expandTextMenu, PreferKey.textSelectAble,
+        PreferKey.ttsHighlightColor, PreferKey.ttsHighlightBold,
+        PreferKey.ttsHighlightUnderline
     )
     private var savedPreferences = emptyMap<String, Any?>()
     private val ReadBookActivity.readView: ReadView
@@ -100,10 +105,58 @@ class TextSelectionAppDeviceTest {
                 assertEquals(text, intent.getStringExtra(Intent.EXTRA_PROCESS_TEXT))
                 assertTrue(intent.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, false))
             }
+
         val manual = ProcessTextHelp.createIntent(receiver)
         assertFalse(manual.getBooleanExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true))
         assertFalse(manual.hasExtra(Intent.EXTRA_PROCESS_TEXT))
         assertEquals(receiver, ComponentName.unflattenFromString(receiver.flattenToString()))
+    }
+
+    @Test
+    fun readAloudBoldPreservesParagraphGeometryAndMeasurementPaint() {
+        withReader { scenario, _ ->
+            scenario.onActivity { activity ->
+                context.defaultSharedPreferences.edit {
+                    putBoolean(PreferKey.ttsHighlightBold, true)
+                }
+                val previousOptimizeRender = AppConfig.optimizeRender
+                AppConfig.optimizeRender = false
+                try {
+                    val first = textLine("first line", paragraphEnd = false)
+                    val second = textLine("second line", paragraphEnd = true)
+                    val third = textLine("third line", paragraphEnd = true)
+                    val page = TextPage(
+                        text = "first linesecond line\nthird line\n",
+                        title = "TTS rendering test"
+                    ).apply {
+                        addLine(first)
+                        addLine(second)
+                        addLine(third)
+                    }
+
+                    page.upPageAloudSpan(first.text.length)
+                    assertTrue(first.isReadAloud)
+                    assertTrue(second.isReadAloud)
+                    assertFalse(third.isReadAloud)
+
+                    val geometry = second.columns.map { it.start to it.end }
+                    val paint = ChapterProvider.contentPaint
+                    val measuredWidth = paint.measureText(second.text)
+                    val wasFakeBold = paint.isFakeBoldText
+                    val view = activity.readView.curPage
+                        .findViewById<ContentTextView>(R.id.content_text_view)
+                    val bitmap = Bitmap.createBitmap(400, 120, Bitmap.Config.ARGB_8888)
+                    second.draw(view, Canvas(bitmap))
+                    bitmap.recycle()
+
+                    assertEquals(geometry, second.columns.map { it.start to it.end })
+                    assertEquals(measuredWidth, paint.measureText(second.text), 0f)
+                    assertEquals(wasFakeBold, paint.isFakeBoldText)
+                } finally {
+                    AppConfig.optimizeRender = previousOptimizeRender
+                }
+            }
+        }
     }
 
     @Test
@@ -312,6 +365,7 @@ class TextSelectionAppDeviceTest {
             text.forEachIndexed { index, character ->
                 line.addColumn(TextColumn(30f + index * 20f, 50f + index * 20f, character.toString()))
             }
+
             val page = TextPage(text = text, title = "Selection test").apply { addLine(line) }
             readView.curPage.setContent(page)
             touch(activity, MotionEvent.ACTION_DOWN)
@@ -320,6 +374,20 @@ class TextSelectionAppDeviceTest {
         scenario.onActivity {
             assertTrue("Long press must select the fixture word", it.readView.isTextSelected)
             assertNotNull(it.readView.pageDelegate)
+        }
+    }
+
+    private fun textLine(text: String, paragraphEnd: Boolean): TextLine {
+        return TextLine(
+            text = text,
+            lineTop = 0f,
+            lineBase = 60f,
+            lineBottom = 80f,
+            isParagraphEnd = paragraphEnd
+        ).apply {
+            text.forEachIndexed { index, character ->
+                addColumn(TextColumn(index * 20f, (index + 1) * 20f, character.toString()))
+            }
         }
     }
 
