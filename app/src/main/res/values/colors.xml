@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="launcher_background">#FF1A2F5A</color>
+    <color name="launcher_background">#FF087F8C</color>
+    <color name="launcher_background_1">#FF2457C5</color>
+    <color name="launcher_background_2">#FFC66A12</color>
+    <color name="launcher_background_3">#FFC63C58</color>
+    <color name="launcher_background_4">#FF6D4CC3</color>
+    <color name="launcher_background_5">#FF278153</color>
+    <color name="launcher_background_6">#FF3F4B59</color>
+    <color name="launcher_background_7">#FFB33A2B</color>
     <color name="primary">@color/md_light_blue_600</color>
     <color name="primaryDark">@color/md_light_blue_700</color>
     <color name="accent">@color/md_pink_800</color>
