@@ -41,8 +41,6 @@ import io.legado.app.utils.invisible
 import io.legado.app.utils.longToastOnUi
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.throttle
-import java.text.BreakIterator
-import java.util.Locale
 import kotlin.math.abs
 
 /**
@@ -93,7 +91,10 @@ class ReadView(context: Context, attrs: AttributeSet) :
     }
     var isTextSelected = false
     private var pressOnTextSelected = false
-    private val initialTextPos = TextPos(0, 0, 0)
+    private var wordSelection: WordSelection? = null
+    private val selectionColumns = arrayListOf<SelectionColumn>()
+
+    private data class SelectionColumn(val position: TextPos, val offsets: IntRange)
 
     private val slopSquare by lazy { ViewConfiguration.get(context).scaledTouchSlop }
     private var pageSlopSquare: Int = slopSquare
@@ -108,7 +109,6 @@ class ReadView(context: Context, attrs: AttributeSet) :
     private val blRect = RectF()
     private val bcRect = RectF()
     private val brRect = RectF()
-    private val boundary by lazy { BreakIterator.getWordInstance(Locale.getDefault()) }
     private val upProgressThrottle = throttle(200) { post { upProgress() } }
     val autoPager = AutoPager(this)
     val isAutoPage get() = autoPager.isRunning
@@ -194,6 +194,7 @@ class ReadView(context: Context, attrs: AttributeSet) :
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 callBack.screenOffTimerStart()
+                clearWordSelection()
                 if (isTextSelected) {
                     curPage.cancelSelect()
                     isTextSelected = false
@@ -242,6 +243,12 @@ class ReadView(context: Context, attrs: AttributeSet) :
                     }
                 }
                 if (isTextSelected) {
+                    if (isMove || abs(startX - event.x) > slopSquare ||
+                        abs(startY - event.y) > slopSquare
+                    ) {
+                        selectText(event.x, event.y)
+                    }
+                    clearWordSelection()
                     callBack.onTextSelectionComplete()
                 } else if (pageDelegate!!.isMoved) {
                     pageDelegate?.onTouch(event)
@@ -253,6 +260,7 @@ class ReadView(context: Context, attrs: AttributeSet) :
                 removeCallbacks(longPressRunnable)
                 if (!pressDown) return true
                 pressDown = false
+                clearWordSelection()
                 if (isTextSelected) {
                     callBack.showTextActionMenu()
                 } else if (pageDelegate!!.isMoved) {
@@ -266,6 +274,7 @@ class ReadView(context: Context, attrs: AttributeSet) :
     }
 
     fun cancelSelect(clearSearchResult: Boolean = false) {
+        clearWordSelection()
         if (isTextSelected) {
             curPage.cancelSelect(clearSearchResult)
             isTextSelected = false
@@ -317,74 +326,53 @@ class ReadView(context: Context, attrs: AttributeSet) :
      * 长按选择
      */
     private fun onLongPress() {
-        kotlin.runCatching {
-            curPage.longPress(startX, startY) { textPos: TextPos ->
-                isTextSelected = true
-                pressOnTextSelected = true
-                initialTextPos.upData(textPos)
-                val startPos = textPos.copy()
-                val endPos = textPos.copy()
-                val page = curPage.relativePage(textPos.relativePagePos)
-                val stringBuilder = StringBuilder()
-                var cIndex = textPos.columnIndex
-                var lineStart = textPos.lineIndex
-                var lineEnd = textPos.lineIndex
-                for (index in textPos.lineIndex - 1 downTo 0) {
-                    val textLine = page.getLine(index)
-                    if (textLine.isParagraphEnd) {
-                        break
-                    } else {
-                        stringBuilder.insert(0, textLine.text)
-                        lineStart -= 1
-                        cIndex += textLine.charSize
-                    }
+        curPage.longPress(startX, startY) { textPos ->
+            clearWordSelection()
+            val text = StringBuilder()
+            val pages = curPage.getSelectionPages()
+            pages.forEachIndexed { pageIndex, page ->
+                if (pageIndex > 0 && page.chapterIndex != pages[pageIndex - 1].chapterIndex) {
+                    text.append('\n')
                 }
-                for (index in textPos.lineIndex until page.lineSize) {
-                    val textLine = page.getLine(index)
-                    stringBuilder.append(textLine.text)
-                    lineEnd += 1
-                    if (textLine.isParagraphEnd) {
-                        break
-                    }
-                }
-                var start: Int
-                var end: Int
-                boundary.setText(stringBuilder.toString())
-                start = boundary.first()
-                end = boundary.next()
-                while (end != BreakIterator.DONE) {
-                    if (cIndex in start until end) {
-                        break
-                    }
-                    start = end
-                    end = boundary.next()
-                }
-                kotlin.run {
-                    var ci = 0
-                    for (index in lineStart..lineEnd) {
-                        val textLine = page.getLine(index)
-                        for (j in textLine.columns.indices) {
-                            if (ci == start) {
-                                startPos.lineIndex = index
-                                startPos.columnIndex = j
-                            } else if (ci == end - 1) {
-                                endPos.lineIndex = index
-                                endPos.columnIndex = j
-                                return@run
+                page.lines.forEachIndexed { lineIndex, line ->
+                    line.columns.forEachIndexed { columnIndex, column ->
+                        val start = text.length
+                        if (column is TextBaseColumn) {
+                            text.append(column.charData)
+                            if (text.length > start) {
+                                selectionColumns.add(
+                                    SelectionColumn(
+                                        TextPos(pageIndex, lineIndex, columnIndex),
+                                        start until text.length
+                                    )
+                                )
                             }
-                            val column = textLine.getColumn(j)
-                            if (column is TextBaseColumn) {
-                                ci += column.charData.length
-                            } else {
-                                ci++
-                            }
+                        } else {
+                            text.append('\uFFFC')
                         }
                     }
+                    if (line.isParagraphEnd) text.append('\n')
                 }
-                curPage.selectStartMoveIndex(startPos)
-                curPage.selectEndMoveIndex(endPos)
             }
+            val anchor = selectionColumns.first { it.position == textPos }
+            val selection = WordSelection(text.toString(), anchor.offsets.first)
+            wordSelection = selection
+            isTextSelected = true
+            pressOnTextSelected = true
+            applyWordSelection(selection.initialSelection)
         }
+    }
+
+    private fun clearWordSelection() {
+        wordSelection = null
+        selectionColumns.clear()
+    }
+
+    private fun applyWordSelection(range: IntRange) {
+        val start = selectionColumns.first { it.offsets.last >= range.first }
+        val end = selectionColumns.last { it.offsets.first <= range.last }
+        curPage.selectStartMoveIndex(start.position)
+        curPage.selectEndMoveIndex(end.position)
     }
 
     /**
@@ -471,23 +459,14 @@ class ReadView(context: Context, attrs: AttributeSet) :
      * 选择文本
      */
     private fun selectText(x: Float, y: Float) {
-        curPage.selectText(x, y) { textPos ->
-            val compare = initialTextPos.compare(textPos)
-            when {
-                compare > 0 -> {
-                    curPage.selectStartMoveIndex(textPos)
-                    curPage.selectEndMoveIndex(
-                        initialTextPos.relativePagePos,
-                        initialTextPos.lineIndex,
-                        initialTextPos.columnIndex - 1
-                    )
-                }
-
-                else -> {
-                    curPage.selectStartMoveIndex(initialTextPos)
-                    curPage.selectEndMoveIndex(textPos)
-                }
-            }
+        val selection = wordSelection ?: return
+        curPage.selectText(x, y) selecting@{ textPos ->
+            val line = curPage.relativePage(textPos.relativePagePos).getLine(textPos.lineIndex)
+            val columnIndex = textPos.columnIndex.coerceIn(0, line.columns.lastIndex)
+            val column = selectionColumns.firstOrNull {
+                it.position.compare(textPos.relativePagePos, textPos.lineIndex, columnIndex) == 0
+            } ?: return@selecting
+            applyWordSelection(selection.selectionAt(column.offsets.first))
         }
     }
 
@@ -495,6 +474,7 @@ class ReadView(context: Context, attrs: AttributeSet) :
      * 销毁事件
      */
     fun onDestroy() {
+        clearWordSelection()
         pageDelegate?.onDestroy()
         curPage.cancelSelect()
         invalidateTextPage()

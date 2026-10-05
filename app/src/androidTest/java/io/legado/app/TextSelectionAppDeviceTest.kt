@@ -16,6 +16,7 @@ import android.graphics.Canvas
 import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
+import androidx.annotation.RequiresApi
 import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
@@ -36,6 +37,8 @@ import io.legado.app.ui.book.read.page.ContentTextView
 import io.legado.app.ui.book.read.page.entities.TextLine
 import io.legado.app.ui.book.read.page.entities.TextPage
 import io.legado.app.ui.book.read.page.entities.column.TextColumn
+import io.legado.app.ui.book.read.page.entities.column.TextBaseColumn
+import io.legado.app.ui.book.read.page.entities.column.TextHtmlColumn
 import io.legado.app.ui.book.read.page.provider.ChapterProvider
 import io.legado.app.utils.defaultSharedPreferences
 import org.junit.After
@@ -322,14 +325,170 @@ class TextSelectionAppDeviceTest {
         }
     }
 
+    @Test
+    fun phraseDraggingSnapsBothDirectionsFromEveryLetter() {
+        withReader { scenario, monitor ->
+            for ((first, second) in listOf("put" to "down", "get" to "up")) {
+                val text = "$first $second"
+                for (anchor in text.indices.filter { text[it] != ' ' }) {
+                    beginSelection(scenario, text = text, column = anchor)
+                    scenario.onActivity { activity ->
+                        val targets = if (anchor < first.length) {
+                            first.length + 1 until text.length
+                        } else {
+                            first.indices
+                        }
+                        for (target in targets) {
+                            touch(activity, MotionEvent.ACTION_MOVE, column = target)
+                            assertEquals("anchor=$anchor target=$target", text, activity.selectedText)
+                            assertHighlightedText(activity, text)
+                            touch(activity, MotionEvent.ACTION_MOVE, column = anchor)
+                            assertEquals(
+                                if (anchor < first.length) first else second,
+                                activity.selectedText
+                            )
+                        }
+                        touch(activity, MotionEvent.ACTION_CANCEL)
+                        assertEquals(0, monitor.hits)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun draggingShrinksReversesAndExcludesOnlyOuterSeparators() {
+        withReader { scenario, monitor ->
+            beginSelection(scenario, text = "put  down, now", column = 6)
+            scenario.onActivity { activity ->
+                for ((column, expected) in listOf(
+                    1 to "put  down", 12 to "down, now", 6 to "down",
+                    9 to "down", 10 to "down", 3 to "down", -1 to "put  down",
+                    14 to "down, now"
+                )) {
+                    touch(activity, MotionEvent.ACTION_MOVE, column)
+                    assertEquals("column=$column", expected, activity.selectedText)
+                    assertHighlightedText(activity, expected)
+                }
+                touch(activity, MotionEvent.ACTION_UP, column = 12)
+                assertTrue(activity.textActionMenu.isShowing)
+                assertEquals(0, monitor.hits)
+                val page = activity.readView.curPage
+                page.selectStartMove(
+                    page.imgBgPaddingStart + 40f + 6 * 20f,
+                    page.headerHeight + ChapterProvider.paddingTop + 60f
+                )
+                assertEquals("own, now", activity.selectedText)
+            }
+        }
+    }
+
+    @Test
+    fun wrappedWordsAndUnicodeColumnsUseLogicalWordBoundaries() {
+        withReader { scenario, _ ->
+            for (html in listOf(false, true)) {
+                beginSelection(
+                    scenario, text = "\uD83D\uDE00 pu", followingLines = listOf("t down"),
+                    paragraphEnds = setOf(1), column = 3, html = html
+                )
+                scenario.onActivity { activity ->
+                    assertEquals("put", activity.selectedText)
+                    touch(activity, MotionEvent.ACTION_MOVE, column = 3, line = 1)
+                    assertEquals("put down", activity.selectedText)
+                    touch(activity, MotionEvent.ACTION_MOVE, column = 3, line = 0)
+                    assertEquals("put", activity.selectedText)
+                    touch(activity, MotionEvent.ACTION_CANCEL)
+                }
+            }
+            beginSelection(
+                scenario, text = "get", followingLines = listOf("up"),
+                paragraphEnds = setOf(0, 1), column = 1
+            )
+            scenario.onActivity { activity ->
+                touch(activity, MotionEvent.ACTION_MOVE, column = 0, line = 1)
+                assertEquals("get\nup", activity.selectedText)
+                touch(activity, MotionEvent.ACTION_CANCEL)
+            }
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = 26)
+    fun finalReleaseSendsTheExactSnappedPhraseOnce() {
+        val monitor = RecordingSelectionMonitor()
+        withReader(monitor) { scenario, _ ->
+            AppConfig.selectionApp = receiver.flattenToString()
+            AppConfig.autoOpenSelectionApp = true
+            beginSelection(scenario, text = "put down,", column = 1)
+            scenario.onActivity { activity ->
+                assertEquals("put", activity.selectedText)
+                assertTrue(monitor.intents.isEmpty())
+                touch(activity, MotionEvent.ACTION_UP, column = 5)
+                assertEquals(1, monitor.intents.size)
+                assertEquals(
+                    "put down",
+                    monitor.intents.single().getStringExtra(Intent.EXTRA_PROCESS_TEXT)
+                )
+                assertFalse(activity.readView.isTextSelected)
+                touch(activity, MotionEvent.ACTION_UP, column = 5)
+                activity.onTextSelectionComplete()
+                assertEquals(1, monitor.intents.size)
+            }
+            scenario.moveToState(Lifecycle.State.CREATED)
+            scenario.moveToState(Lifecycle.State.RESUMED)
+            assertEquals(1, monitor.intents.size)
+        }
+    }
+
+    @Test
+    @SdkSuppress(minSdkVersion = 26)
+    fun finalReleaseUpdatesTheLastMoveAndOutsideReleaseKeepsSelection() {
+        val monitor = RecordingSelectionMonitor()
+        withReader(monitor) { scenario, _ ->
+            AppConfig.selectionApp = receiver.flattenToString()
+            AppConfig.autoOpenSelectionApp = true
+            beginSelection(scenario, text = "put down now,", column = 1)
+            scenario.onActivity { activity ->
+                touch(activity, MotionEvent.ACTION_MOVE, column = 5)
+                assertEquals("put down", activity.selectedText)
+                assertTrue(monitor.intents.isEmpty())
+                touch(activity, MotionEvent.ACTION_UP, column = 12)
+                assertEquals(
+                    "put down now",
+                    monitor.intents.single().getStringExtra(Intent.EXTRA_PROCESS_TEXT)
+                )
+            }
+            beginSelection(scenario, text = "put down now,", column = 1)
+            scenario.onActivity { activity ->
+                touch(activity, MotionEvent.ACTION_MOVE, column = 5)
+                assertHighlightedText(activity, "put down")
+                touch(activity, MotionEvent.ACTION_UP, column = 5, line = -10)
+                assertEquals(2, monitor.intents.size)
+                assertEquals(
+                    "put down",
+                    monitor.intents.last().getStringExtra(Intent.EXTRA_PROCESS_TEXT)
+                )
+                assertFalse(activity.readView.isTextSelected)
+            }
+        }
+    }
+
+    private fun assertHighlightedText(activity: ReadBookActivity, expected: String) {
+        val highlighted = activity.readView.curPage.textPage.lines.flatMap { it.columns }
+            .filterIsInstance<TextBaseColumn>().filter { it.selected }
+            .joinToString("") { it.charData }
+        assertEquals(expected, highlighted)
+    }
+
     private fun withReader(
+        monitor: Instrumentation.ActivityMonitor = Instrumentation.ActivityMonitor(
+            IntentFilter(Intent.ACTION_PROCESS_TEXT).apply { addDataType("text/plain") },
+            Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null), true
+        ),
         block: (ActivityScenario<ReadBookActivity>, Instrumentation.ActivityMonitor) -> Unit
     ) {
         val previousBook = ReadBook.book
-        val filter = IntentFilter(Intent.ACTION_PROCESS_TEXT).apply { addDataType("text/plain") }
-        val monitor = instrumentation.addMonitor(
-            filter, Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null), true
-        )
+        instrumentation.addMonitor(monitor)
         val intent = Intent(context, ReadBookActivity::class.java)
             .putExtra("bookUrl", "selection-test://no-book")
             .putExtra("inBookshelf", false)
@@ -351,24 +510,47 @@ class TextSelectionAppDeviceTest {
         }
     }
 
-    private fun beginSelection(scenario: ActivityScenario<ReadBookActivity>) {
+    private fun beginSelection(
+        scenario: ActivityScenario<ReadBookActivity>,
+        text: String = "alpha beta gamma",
+        column: Int = 1,
+        followingLines: List<String> = emptyList(),
+        paragraphEnds: Set<Int> = setOf(followingLines.size),
+        html: Boolean = false
+    ) {
         scenario.onActivity { activity ->
             val readView = activity.readView
             readView.cancelSelect()
-            val text = "alpha beta gamma"
-            val line = TextLine(
-                text = text,
-                lineTop = ChapterProvider.paddingTop + 30f,
-                lineBottom = ChapterProvider.paddingTop + 90f,
-                isParagraphEnd = true
-            )
-            text.forEachIndexed { index, character ->
-                line.addColumn(TextColumn(30f + index * 20f, 50f + index * 20f, character.toString()))
+            val page = TextPage(text = text, title = "Selection test")
+            (listOf(text) + followingLines).forEachIndexed { lineIndex, lineText ->
+                val line = TextLine(
+                    text = lineText,
+                    lineTop = ChapterProvider.paddingTop + 30f + lineIndex * 80f,
+                    lineBottom = ChapterProvider.paddingTop + 90f + lineIndex * 80f,
+                    isParagraphEnd = lineIndex in paragraphEnds
+                )
+                var offset = 0
+                var index = 0
+                while (offset < lineText.length) {
+                    val end = offset + Character.charCount(lineText.codePointAt(offset))
+                    val character = lineText.substring(offset, end)
+                    line.addColumn(
+                        if (html) {
+                            TextHtmlColumn(
+                                30f + index * 20f, 50f + index * 20f,
+                                character, 20f, null, null
+                            )
+                        } else {
+                            TextColumn(30f + index * 20f, 50f + index * 20f, character)
+                        }
+                    )
+                    offset = end
+                    index++
+                }
+                page.addLine(line)
             }
-
-            val page = TextPage(text = text, title = "Selection test").apply { addLine(line) }
             readView.curPage.setContent(page)
-            touch(activity, MotionEvent.ACTION_DOWN)
+            touch(activity, MotionEvent.ACTION_DOWN, column)
         }
         SystemClock.sleep(700)
         scenario.onActivity {
@@ -391,12 +573,12 @@ class TextSelectionAppDeviceTest {
         }
     }
 
-    private fun touch(activity: ReadBookActivity, action: Int, column: Int = 1) {
+    private fun touch(activity: ReadBookActivity, action: Int, column: Int = 1, line: Int = 0) {
         val page = activity.readView.curPage
         val event = MotionEvent.obtain(
             0, SystemClock.uptimeMillis(), action,
             page.imgBgPaddingStart + 40f + column * 20f,
-            page.headerHeight + ChapterProvider.paddingTop + 60f, 0
+            page.headerHeight + ChapterProvider.paddingTop + 60f + line * 80f, 0
         )
         try {
             activity.readView.onTouchEvent(event)
@@ -421,6 +603,17 @@ class TextSelectionAppDeviceTest {
         override fun startActivity(intent: Intent) {
             intents.add(intent)
             failure?.let { throw it }
+        }
+    }
+
+    @RequiresApi(26)
+    private class RecordingSelectionMonitor : Instrumentation.ActivityMonitor() {
+        val intents = arrayListOf<Intent>()
+
+        override fun onStartActivity(intent: Intent): Instrumentation.ActivityResult? {
+            if (intent.action != Intent.ACTION_PROCESS_TEXT) return null
+            intents.add(Intent(intent))
+            return Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null)
         }
     }
 }

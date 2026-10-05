@@ -330,7 +330,6 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
     ) {
         touchRough(x, y) { _, textPos, _, _, column ->
             if (column is TextBaseColumn) {
-                column.selected = true
                 select(textPos)
             }
         }
@@ -465,6 +464,7 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
                         }
                     }
                     val columns = textLine.columns
+                    if (columns.isEmpty()) continue
                     for (charIndex in columns.indices) {
                         val textColumn = columns[charIndex]
                         if (textColumn.isTouch(x)) {
@@ -730,6 +730,17 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
             0 -> textPage
             1 -> pageFactory.nextPage
             else -> pageFactory.nextPlusPage
+        }
+    }
+
+    fun getSelectionPages(): List<TextPage> = buildList {
+        add(textPage)
+        if (!callBack.isScroll || !pageFactory.hasNext() ||
+            relativeOffset(1) >= ChapterProvider.visibleHeight
+        ) return@buildList
+        add(relativePage(1))
+        if (pageFactory.hasNextPlus() && relativeOffset(2) < ChapterProvider.visibleHeight) {
+            add(relativePage(2))
         }
     }
 

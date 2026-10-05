@@ -49,7 +49,18 @@ In a book's reading-interface settings:
    integration, not every installed app.
 2. Enable **Open app automatically after selecting text**. It is off by default.
 3. Long-press a word, then lift your finger to send it directly to the app.
-   To look up a sentence, long-press and drag across it **before releasing**.
+   To look up a phrase, keep holding and drag onto the next word **before
+   releasing**. Touching any letter in `down` after holding `put` selects
+   the complete phrase `put down`.
+
+Long-press dragging snaps to whole words in both directions. Drag back toward
+the first word to shrink the selection. Spaces and sentence punctuation at
+the moving edge are excluded; spaces and punctuation inside the phrase are
+preserved. Words can span wrapped lines. This uses the reader's language-aware
+word boundaries, not phrase prediction.
+
+Word snapping also applies with automatic opening off. The separate selection
+handles remain character-precise for selecting partial words or punctuation.
 
 Successful launches clear the selection. Returning from the dictionary does not
 trigger another lookup. The dictionary controls whether it opens a floating

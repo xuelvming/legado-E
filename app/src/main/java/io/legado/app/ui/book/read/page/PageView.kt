@@ -503,6 +503,8 @@ class PageView(context: Context) : FrameLayout(context) {
         return binding.contentTextView.relativePage(relativePagePos)
     }
 
+    fun getSelectionPages(): List<TextPage> = binding.contentTextView.getSelectionPages()
+
     val textPage get() = binding.contentTextView.textPage
 
     val selectedText: String get() = binding.contentTextView.getSelectedText()

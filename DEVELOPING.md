@@ -504,10 +504,11 @@ test fixtures, commits, or issue reports.
 
 ### Text-selection app regression checks
 
-Run the focused configuration tests and build the debug APK:
+Run the focused word-selection and configuration tests and build the debug APK:
 
 ```powershell
 .\gradlew.bat :app:testAppDebugUnitTest `
+  --tests "io.legado.app.ui.book.read.page.WordSelectionTest" `
   --tests "io.legado.app.HunReaderConfigurationTest"
 .\gradlew.bat :app:assembleAppDebug
 ```
@@ -525,6 +526,27 @@ errors, preference behavior, backup exclusions, release/cancel gestures,
 selection cleanup, and the normal menu fallback. The gesture fixtures exercise
 the native reader's text-selection path without importing a personal book.
 
+Whole-word regressions cover every letter of `put down` and `get up` in both
+directions, shrinking/reversing a drag, outer separators versus internal
+punctuation, wrapped words, Unicode column offsets, styled text, paragraph
+breaks, and character-precise handles. On API 26+, a blocking activity monitor
+also checks the actual phrase in `EXTRA_PROCESS_TEXT`, including a final
+position delivered only on finger release. The JVM word-range tests run
+without a device; Android's own segmentation and touch behavior still require
+the instrumented tests.
+
+Without a connected device, compile the device tests separately:
+
+```powershell
+.\gradlew.bat :app:assembleAppDebugAndroidTest
+```
+
+Compiling the test APK does not count as executing the gesture tests.
+Windows ARM hosts require a physical Android device for these checks: the
+Android emulator currently requires an x64 Windows host, even when an ARM64
+guest system image is available. See the
+[Windows emulator hardware requirements](https://learn.microsoft.com/en-us/dotnet/maui/android/emulator/hardware-acceleration).
+
 Before declaring Eudic compatibility, separately test with the installed Eudic
 version on a physical device:
 
@@ -532,12 +554,22 @@ version on a physical device:
   opening. Confirm both settings survive an app restart.
 - Hold an English word: nothing launches until release. Release: exactly one
   dictionary lookup, without expanding a menu or showing a chooser.
+- Hold a middle letter in `put`, then drag onto the first or middle letter of
+  `down`: highlight and send exactly `put down`. Repeat with `get up`, backward
+  dragging, a third word, and dragging back to shrink the selection.
+- Finish a drag on spaces, a comma, or a closing quote: the moving edge stops
+  at the reached word. Punctuation and spacing inside the phrase remain intact.
 - Long-press and drag a sentence before releasing: the complete selection is
   sent, including Unicode and paragraph breaks where present.
+- Test words/phrases wrapping across lines and between pages visible together
+  in scrolling mode. Moving outside hittable text must retain the last valid
+  selection. Selection does not automatically turn a page.
 - Return to the reader: reading position is unchanged, selection is cleared,
   and Eudic does not reopen. Selecting the same word again starts a new lookup.
 - Cancel a selection gesture: no lookup. With automatic mode off, verify copy,
   bookmarks, built-in dictionary, and expanded/collapsed menus still work.
+- With automatic mode off, drag the separate handles to select part of a word
+  or include punctuation, and cross the handles to check cursor reversal.
 - Test both TXT and EPUB, scrolling and paginated reading. Verify API 21-22
   retain normal selection behavior and display the unsupported setting state.
 - Exercise unavailable/disabled targets on a disposable test setup rather than
