@@ -19,7 +19,18 @@ static def releaseTime() {
 
 def name = "hunreader"
 def version = "3." + releaseTime()
-def gitCommits = Integer.parseInt('git rev-list HEAD --count'.execute().text.trim())
+def gitOutput = new ByteArrayOutputStream()
+def gitError = new ByteArrayOutputStream()
+def gitProcess = ["git", "rev-list", "HEAD", "--count"].execute(null, rootDir)
+gitProcess.waitForProcessOutput(gitOutput, gitError)
+if (gitProcess.exitValue() != 0) {
+    throw new GradleException("Unable to determine the Git commit count: ${gitError.toString("UTF-8").trim()}")
+}
+def gitCommitCount = gitOutput.toString("UTF-8").trim()
+if (!(gitCommitCount ==~ /\d+/)) {
+    throw new GradleException("Git returned an invalid commit count: '${gitCommitCount}'")
+}
+def gitCommits = Integer.parseInt(gitCommitCount)
 
 def signingPropertiesFile = file(System.getenv("HUNREADER_SIGNING_PROPERTIES")
         ?: "${System.getProperty('user.home')}/.hunreader/signing.properties")

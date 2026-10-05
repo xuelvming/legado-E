@@ -3,6 +3,7 @@ package io.legado.app.ui.book.read.config
 import android.annotation.SuppressLint
 import android.content.DialogInterface
 import android.content.SharedPreferences
+import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -12,10 +13,14 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.LinearLayout
 import androidx.preference.Preference
+import androidx.preference.ListPreference
+import androidx.preference.TwoStatePreference
 import io.legado.app.R
 import io.legado.app.base.BasePrefDialogFragment
 import io.legado.app.constant.EventBus
+import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
+import io.legado.app.help.ProcessTextHelp
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.lib.prefs.fragment.PreferenceFragment
@@ -84,6 +89,13 @@ class MoreConfigDialog : BasePrefDialogFragment() {
         @SuppressLint("RestrictedApi")
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             addPreferencesFromResource(R.xml.pref_config_read)
+            findPreference<ListPreference>(PreferKey.selectionApp)?.setOnPreferenceChangeListener { _, value ->
+                require(value is String)
+                AppConfig.selectionApp = value
+                updateSelectionAppPreferences()
+                false
+            }
+            updateSelectionAppPreferences()
             upPreferenceSummary(PreferKey.pageTouchSlop, slopSquare.toString())
             if (!CanvasRecorderFactory.isSupport) {
                 removePref(PreferKey.optimizeRender)
@@ -98,6 +110,7 @@ class MoreConfigDialog : BasePrefDialogFragment() {
 
         override fun onResume() {
             super.onResume()
+            updateSelectionAppPreferences()
             preferenceManager
                 .sharedPreferences
                 ?.registerOnSharedPreferenceChangeListener(this)
@@ -115,6 +128,9 @@ class MoreConfigDialog : BasePrefDialogFragment() {
             key: String?
         ) {
             when (key) {
+                PreferKey.selectionApp, PreferKey.autoOpenSelectionApp ->
+                    updateSelectionAppPreferences()
+
                 PreferKey.readBodyToLh -> activity?.recreate()
                 PreferKey.hideStatusBar -> {
                     ReadBookConfig.hideStatusBar = getPrefBoolean(PreferKey.hideStatusBar)
@@ -209,6 +225,62 @@ class MoreConfigDialog : BasePrefDialogFragment() {
                 }
             }
             return super.onPreferenceTreeClick(preference)
+        }
+
+        override fun onDisplayPreferenceDialog(preference: Preference) {
+            if (preference.key == PreferKey.selectionApp) {
+                updateSelectionAppPreferences()
+            }
+            super.onDisplayPreferenceDialog(preference)
+        }
+
+        private fun updateSelectionAppPreferences() {
+            val picker = findPreference<ListPreference>(PreferKey.selectionApp) ?: return
+            val automatic = findPreference<TwoStatePreference>(PreferKey.autoOpenSelectionApp) ?: return
+            val target = AppConfig.selectionApp
+            val labels = arrayListOf<CharSequence>(getString(R.string.selection_app_none))
+            val values = arrayListOf<CharSequence>("")
+            var summary = getString(R.string.selection_app_summary)
+            var available = false
+            val supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+            if (supported) {
+                try {
+                    val context = requireContext()
+                    val apps = ProcessTextHelp.getSelectionApps(context)
+                    val names = apps.map { it.loadLabel(context.packageManager).toString() }
+                    val nameCounts = names.groupingBy { it }.eachCount()
+                    for ((index, info) in apps.withIndex()) {
+                        val component = ProcessTextHelp.component(info).flattenToString()
+                        val label = names[index]
+                        labels.add(if (nameCounts[label] == 1) label else "$label ($component)")
+                        values.add(component)
+                        if (component == target) available = true
+                    }
+                    summary = when {
+                        target.isNotEmpty() && !available ->
+                            getString(R.string.selection_app_unavailable) + "\n" + target
+                        apps.isEmpty() -> getString(R.string.selection_app_no_apps)
+                        else -> summary
+                    }
+                } catch (e: SecurityException) {
+                    summary = getString(R.string.selection_app_query_failed)
+                    AppLog.put(summary, e, true)
+                }
+            } else {
+                summary = getString(R.string.selection_app_unsupported)
+            }
+            picker.entries = labels.toTypedArray()
+            picker.entryValues = values.toTypedArray()
+            picker.value = target
+            picker.summary = summary
+            picker.isEnabled = supported
+            automatic.isChecked = AppConfig.autoOpenSelectionApp
+            automatic.isEnabled = supported && available
+            automatic.summary = if (supported) {
+                getString(R.string.auto_open_selection_app_summary)
+            } else {
+                getString(R.string.selection_app_unsupported)
+            }
         }
 
         @Suppress("SameParameterValue")

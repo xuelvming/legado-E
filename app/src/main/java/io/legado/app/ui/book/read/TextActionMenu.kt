@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ResolveInfo
 import android.net.Uri
 import android.os.Build
 import android.view.Gravity
@@ -25,6 +24,7 @@ import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
 import io.legado.app.databinding.ItemTextBinding
 import io.legado.app.databinding.PopupActionMenuBinding
+import io.legado.app.help.ProcessTextHelp
 import io.legado.app.help.config.AppConfig
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.gone
@@ -245,26 +245,6 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.M)
-    private fun createProcessTextIntent(): Intent {
-        return Intent()
-            .setAction(Intent.ACTION_PROCESS_TEXT)
-            .setType("text/plain")
-    }
-
-    @RequiresApi(Build.VERSION_CODES.M)
-    private fun getSupportedActivities(): List<ResolveInfo> {
-        return context.packageManager
-            .queryIntentActivities(createProcessTextIntent(), 0)
-    }
-
-    @RequiresApi(Build.VERSION_CODES.M)
-    private fun createProcessTextIntentForResolveInfo(info: ResolveInfo): Intent {
-        return createProcessTextIntent()
-            .putExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, false)
-            .setClassName(info.activityInfo.packageName, info.activityInfo.name)
-    }
-
     /**
      * Start with a menu Item order value that is high enough
      * so that your "PROCESS_TEXT" menu items appear after the
@@ -274,11 +254,11 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
     private fun onInitializeMenu(menu: Menu) {
         kotlin.runCatching {
             var menuItemOrder = 100
-            for (resolveInfo in getSupportedActivities()) {
+            for (resolveInfo in ProcessTextHelp.getSupportedActivities(context)) {
                 menu.add(
                     Menu.NONE, Menu.NONE,
                     menuItemOrder++, resolveInfo.loadLabel(context.packageManager)
-                ).intent = createProcessTextIntentForResolveInfo(resolveInfo)
+                ).intent = ProcessTextHelp.createIntent(ProcessTextHelp.component(resolveInfo))
             }
         }.onFailure {
             context.toastOnUi("获取文字操作菜单出错:${it.localizedMessage}")

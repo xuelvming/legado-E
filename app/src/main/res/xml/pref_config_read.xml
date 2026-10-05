@@ -150,6 +150,22 @@
         app:iconSpaceReserved="false"
         app:isBottomBackground="true" />
 
+    <io.legado.app.lib.prefs.NameListPreference
+        android:defaultValue=""
+        android:key="selectionApp"
+        android:title="@string/selection_app"
+        android:summary="@string/selection_app_summary"
+        app:iconSpaceReserved="false"
+        app:isBottomBackground="true" />
+
+    <io.legado.app.lib.prefs.SwitchPreference
+        android:defaultValue="false"
+        android:key="autoOpenSelectionApp"
+        android:title="@string/auto_open_selection_app"
+        android:summary="@string/auto_open_selection_app_summary"
+        app:iconSpaceReserved="false"
+        app:isBottomBackground="true" />
+
     <io.legado.app.lib.prefs.SwitchPreference
         android:defaultValue="true"
         android:key="showBrightnessView"

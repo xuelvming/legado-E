@@ -3,6 +3,7 @@ package io.legado.app.ui.book.read
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.view.Gravity
@@ -36,6 +37,7 @@ import io.legado.app.data.entities.BookSource
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.IntentData
+import io.legado.app.help.ProcessTextHelp
 import io.legado.app.help.TTS
 import io.legado.app.help.book.BookHelp
 import io.legado.app.help.book.ContentProcessor
@@ -164,6 +166,8 @@ class ReadBookActivity : BaseReadBookActivity(),
     TxtTocRuleDialog.CallBack,
     ColorPickerDialogListener,
     LayoutProgressListener {
+
+    private var selectionHandlePressed = false
 
     private val tocActivity =
         registerForActivityResult(TocActivityResult()) {
@@ -755,10 +759,14 @@ class ReadBookActivity : BaseReadBookActivity(),
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouch(v: View, event: MotionEvent): Boolean = binding.run {
         if (!binding.readView.isTextSelected) {
+            selectionHandlePressed = false
             return false
         }
         when (event.action) {
-            MotionEvent.ACTION_DOWN -> textActionMenu.dismiss()
+            MotionEvent.ACTION_DOWN -> {
+                selectionHandlePressed = true
+                textActionMenu.dismiss()
+            }
             MotionEvent.ACTION_MOVE -> {
                 when (v.id) {
                     R.id.cursor_left -> if (!readView.curPage.getReverseStartCursor()) {
@@ -788,6 +796,14 @@ class ReadBookActivity : BaseReadBookActivity(),
             }
 
             MotionEvent.ACTION_UP -> {
+                if (!selectionHandlePressed) return true
+                selectionHandlePressed = false
+                readView.curPage.resetReverseCursor()
+                onTextSelectionComplete()
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                selectionHandlePressed = false
                 readView.curPage.resetReverseCursor()
                 showTextActionMenu()
             }
@@ -819,6 +835,7 @@ class ReadBookActivity : BaseReadBookActivity(),
      * 取消文字选择
      */
     override fun onCancelSelect() = binding.run {
+        selectionHandlePressed = false
         cursorLeft.invisible()
         cursorRight.invisible()
         textActionMenu.dismiss()
@@ -826,6 +843,19 @@ class ReadBookActivity : BaseReadBookActivity(),
 
     override fun onLongScreenshotTouchEvent(event: MotionEvent): Boolean {
         return binding.readView.onTouchEvent(event)
+    }
+
+    override fun onTextSelectionComplete() {
+        if (!binding.readView.isTextSelected) return
+        val target = AppConfig.selectionApp
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            AppConfig.autoOpenSelectionApp && target.isNotEmpty() &&
+            ProcessTextHelp.launch(this, target, selectedText)
+        ) {
+            onMenuActionFinally()
+        } else {
+            showTextActionMenu()
+        }
     }
 
     /**

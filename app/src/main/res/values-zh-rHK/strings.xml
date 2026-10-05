@@ -930,6 +930,17 @@
     <string name="open_sys_dir_picker_error">打开系统文件夹选择器出错,自动打开应用文件夹选择器</string>
     <string name="open_sys_doc_picker_error">打开系统文件选择器出错,自动打开应用文件选择器</string>
     <string name="expand_text_menu">展开文本选择菜单</string>
+    <string name="selection_app">文字選取應用程式</string>
+    <string name="selection_app_none">無</string>
+    <string name="selection_app_summary">選擇可處理所選文字的已安裝應用程式，例如字典。</string>
+    <string name="auto_open_selection_app">選取文字後自動開啟應用程式</string>
+    <string name="auto_open_selection_app_summary">放開手指時，將所選文字傳送給指定應用程式。選取句子時，請長按並拖曳後再放手。應用程式開啟後清除選取。關閉此選項可使用一般文字選取選單。</string>
+    <string name="selection_app_no_apps">未安裝相容的文字選取應用程式。</string>
+    <string name="selection_app_unsupported">文字選取應用程式需要 Android 6.0 或更新版本。</string>
+    <string name="selection_app_unavailable">所選應用程式無法使用。請在閱讀設定中選擇其他應用程式或「無」。</string>
+    <string name="selection_app_query_failed">無法載入文字選取應用程式。</string>
+    <string name="selection_app_launch_failed">無法開啟所選應用程式。仍可使用文字選取選單。</string>
+    <string name="selection_app_empty_text">未選取文字，請選取單字或句子後重試。</string>
     <string name="book_tree_uri_t">书籍保存位置</string>
     <string name="book_tree_uri_s">从其它应用打开的书籍保存位置</string>
     <string name="select_book_folder">选择保存书籍的文件夹</string>

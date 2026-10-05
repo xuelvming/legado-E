@@ -123,6 +123,8 @@ object PreferKey {
     const val brightness = "brightness"
     const val nightBrightness = "nightBrightness"
     const val expandTextMenu = "expandTextMenu"
+    const val selectionApp = "selectionApp"
+    const val autoOpenSelectionApp = "autoOpenSelectionApp"
     const val doublePageHorizontal = "doubleHorizontalPage"
     const val readUrlOpenInBrowser = "readUrlInBrowser"
     const val defaultBookTreeUri = "defaultBookTreeUri"

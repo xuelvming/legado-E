@@ -27,6 +27,38 @@ Required tools:
 The checked-in Gradle wrapper downloads the required Gradle version. Do not
 install a separate system Gradle or change its version to bypass build errors.
 
+### Verified tools on this machine
+
+The toolchains used to build and test this checkout on 2026-10-05 are installed
+at stable, user-owned locations:
+
+| Tool | Installed version | Location |
+| ---- | ----------------- | -------- |
+| Microsoft OpenJDK | 17.0.20.1+1 LTS (`amd64`) | `C:\Users\hunterxue\.jdks\microsoft-jdk-17.0.20.1` |
+| Android SDK Command-line Tools / `sdkmanager` | 19.0 | `C:\Users\hunterxue\AppData\Local\Android\Sdk\cmdline-tools\latest` |
+| Android SDK Platform | API 36, package revision 2 | `C:\Users\hunterxue\AppData\Local\Android\Sdk\platforms\android-36` |
+| Android SDK Build-Tools | 36.0.0 | `C:\Users\hunterxue\AppData\Local\Android\Sdk\build-tools\36.0.0` |
+| Android SDK Platform-Tools | 37.0.1 (`adb` 1.0.41) | `C:\Users\hunterxue\AppData\Local\Android\Sdk\platform-tools` |
+| Gradle wrapper | 8.14.4 (Kotlin 2.0.21) | Repository `gradlew.bat` |
+
+The exact values to use on this machine are:
+
+```text
+JAVA_HOME=C:\Users\hunterxue\.jdks\microsoft-jdk-17.0.20.1
+ANDROID_HOME=C:\Users\hunterxue\AppData\Local\Android\Sdk
+SDK_MANAGER=C:\Users\hunterxue\AppData\Local\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat
+```
+
+`SDK_MANAGER` above is a documentation label, not a required environment
+variable. `JAVA_HOME` and `ANDROID_HOME` were intentionally not persisted
+automatically; use the commands in section 2 when ready.
+
+At the time of verification, the existing user and machine `JAVA_HOME` still
+pointed to `C:\Program Files\Microsoft\jdk-25.0.4.101-hotspot`, while
+`ANDROID_HOME` and `ANDROID_SDK_ROOT` were unset. The project requires JDK 17,
+so replace `JAVA_HOME` using the persistence commands below before building from
+a new terminal. `ANDROID_SDK_ROOT` is not required when `ANDROID_HOME` is set.
+
 ### Recommended: Android Studio
 
 1. Install [Android Studio](https://developer.android.com/studio).
@@ -40,19 +72,20 @@ install a separate system Gradle or change its version to bypass build errors.
    [Microsoft Build of OpenJDK](https://learn.microsoft.com/java/openjdk/download)
    or Eclipse Temurin 17.
 
-The usual SDK location installed by Android Studio on Windows is:
+The SDK location on this machine is:
 
 ```text
-%LOCALAPPDATA%\Android\Sdk
+C:\Users\hunterxue\AppData\Local\Android\Sdk
 ```
 
-The relevant executable locations are normally:
+The verified executable locations are:
 
 ```text
-%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe
-%LOCALAPPDATA%\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat
-%LOCALAPPDATA%\Android\Sdk\build-tools\36.0.0\aapt.exe
-%LOCALAPPDATA%\Android\Sdk\build-tools\36.0.0\apksigner.bat
+C:\Users\hunterxue\.jdks\microsoft-jdk-17.0.20.1\bin\java.exe
+C:\Users\hunterxue\AppData\Local\Android\Sdk\platform-tools\adb.exe
+C:\Users\hunterxue\AppData\Local\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat
+C:\Users\hunterxue\AppData\Local\Android\Sdk\build-tools\36.0.0\aapt.exe
+C:\Users\hunterxue\AppData\Local\Android\Sdk\build-tools\36.0.0\apksigner.bat
 ```
 
 Android Studio displays the actual SDK location at the top of SDK Manager.
@@ -70,7 +103,7 @@ Arrange them so that `sdkmanager.bat` is located at:
 Then install the required packages:
 
 ```powershell
-$sdk = "$env:LOCALAPPDATA\Android\Sdk"
+$sdk = "C:\Users\hunterxue\AppData\Local\Android\Sdk"
 $sdkManager = "$sdk\cmdline-tools\latest\bin\sdkmanager.bat"
 
 & $sdkManager --sdk_root="$sdk" `
@@ -87,49 +120,142 @@ machine's SDK license files.
 For the current PowerShell session:
 
 ```powershell
-$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17"
-$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+$env:JAVA_HOME = "C:\Users\hunterxue\.jdks\microsoft-jdk-17.0.20.1"
+$env:ANDROID_HOME = "C:\Users\hunterxue\AppData\Local\Android\Sdk"
 $env:Path = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:ANDROID_HOME\cmdline-tools\latest\bin;$env:Path"
 ```
 
-Replace `JAVA_HOME` with the directory containing your JDK 17 installation.
-Confirm both tools:
+Confirm all tools and installed Android packages:
 
 ```powershell
 java -version
 adb version
+sdkmanager.bat --version
+sdkmanager.bat --sdk_root="$env:ANDROID_HOME" --list_installed
 where.exe java
 where.exe adb
+where.exe sdkmanager.bat
 ```
 
 To persist the settings for your Windows user, use PowerShell rather than
 `setx PATH`, which can unexpectedly truncate or expand an existing PATH:
 
 ```powershell
-$javaHome = "C:\Program Files\Microsoft\jdk-17"
-$androidHome = "$env:LOCALAPPDATA\Android\Sdk"
+$jdk17Home = "C:\Users\hunterxue\.jdks\microsoft-jdk-17.0.20.1"
+$jdk25Home = "C:\Program Files\Microsoft\jdk-25.0.4.101-hotspot"
+$javaHome = $jdk17Home
+$androidHome = "C:\Users\hunterxue\AppData\Local\Android\Sdk"
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+$knownJavaBins = @("$jdk17Home\bin", "$jdk25Home\bin")
+$remainingUserPath = ($userPath -split ";") |
+    Where-Object { $_ -and $_ -notin $knownJavaBins }
 $entries = @(
     "$javaHome\bin"
     "$androidHome\platform-tools"
     "$androidHome\cmdline-tools\latest\bin"
 )
-$newUserPath = (($entries + ($userPath -split ";")) |
-    Where-Object { $_ } |
-    Select-Object -Unique) -join ";"
+$newUserPath = (($entries + $remainingUserPath) | Select-Object -Unique) -join ";"
 
+[Environment]::SetEnvironmentVariable("JDK17_HOME", $jdk17Home, "User")
+[Environment]::SetEnvironmentVariable("JDK25_HOME", $jdk25Home, "User")
 [Environment]::SetEnvironmentVariable("JAVA_HOME", $javaHome, "User")
 [Environment]::SetEnvironmentVariable("ANDROID_HOME", $androidHome, "User")
 [Environment]::SetEnvironmentVariable("Path", $newUserPath, "User")
 ```
 
-Open a new terminal after changing persistent variables.
+PowerShell environment variables use the `Env:` provider. `$JAVA_HOME` and
+`$PATH` are ordinary PowerShell variables and are normally empty; use:
+
+```powershell
+Write-Host $env:JAVA_HOME
+Write-Host $env:ANDROID_HOME
+$env:Path -split ";"
+```
+
+Persistent environment changes do not update processes that are already
+running. Opening another terminal inside an existing VS Code window may still
+inherit VS Code's old environment. After changing the variables in Windows
+Settings or with `SetEnvironmentVariable`, close **all** VS Code windows and
+start VS Code again. Then open a new terminal and verify:
+
+```powershell
+Write-Host $env:JAVA_HOME
+Write-Host $env:ANDROID_HOME
+where.exe java
+where.exe adb
+where.exe sdkmanager.bat
+java -version
+adb version
+sdkmanager.bat --version
+```
+
+To update only the current terminal without restarting VS Code, run the
+current-session assignment block above. It does not change persistent Windows
+settings.
+
+### Switching between JDK 17 and JDK 25
+
+Keep `JDK17_HOME` and `JDK25_HOME` as stable references to the installations,
+and use the standard `JAVA_HOME` variable for the version active in a terminal.
+Do not use `JAVA_HOME2`: Java and Gradle do not recognize that name.
+
+This project requires JDK 17, so leave JDK 17 as the persistent default. To
+switch individual PowerShell terminals without changing Windows settings, add
+the following functions to your
+[PowerShell profile](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_profiles):
+
+```powershell
+function Use-Java {
+    param([Parameter(Mandatory)][string] $JavaHome)
+
+    $java = Join-Path $JavaHome "bin\java.exe"
+    if (-not (Test-Path $java)) {
+        throw "Java executable not found: $java"
+    }
+
+    $knownJavaBins = @(
+        "$env:JDK17_HOME\bin"
+        "$env:JDK25_HOME\bin"
+        "$env:JAVA_HOME\bin"
+    ) | Where-Object { $_ }
+    $remainingPath = ($env:Path -split ";") |
+        Where-Object { $_ -and $_ -notin $knownJavaBins }
+
+    $env:JAVA_HOME = $JavaHome
+    $env:Path = ((@("$JavaHome\bin") + $remainingPath) |
+        Select-Object -Unique) -join ";"
+
+    Write-Host "JAVA_HOME=$env:JAVA_HOME"
+    java -version
+}
+
+function Use-Java17 { Use-Java $env:JDK17_HOME }
+function Use-Java25 { Use-Java $env:JDK25_HOME }
+```
+
+Open a new terminal after saving the profile, then use:
+
+```powershell
+Use-Java17  # HunReader / this repository
+Use-Java25  # A project that requires JDK 25
+```
+
+The switch affects only that terminal and its child processes; other open
+terminals keep their current Java version. A Gradle daemon keeps the JVM with
+which it started. When switching Java versions in the same repository, stop the
+old daemon before the next build:
+
+```powershell
+.\gradlew.bat --stop
+Use-Java17
+.\gradlew.bat --version
+```
 
 If you do not want a global `ANDROID_HOME`, let Android Studio create the ignored
 `local.properties` file, or create it yourself:
 
 ```properties
-sdk.dir=C\:\\Users\\YOUR_NAME\\AppData\\Local\\Android\\Sdk
+sdk.dir=C\:\\Users\\hunterxue\\AppData\\Local\\Android\\Sdk
 ```
 
 Do not commit `local.properties`.
@@ -375,6 +501,50 @@ These tests verify installed package/provider isolation, import routing, and the
 absence of bundled online presets. They do not contact a real Azure TTS endpoint.
 Test your own TTS configuration manually without placing its credentials in logs,
 test fixtures, commits, or issue reports.
+
+### Text-selection app regression checks
+
+Run the focused configuration tests and build the debug APK:
+
+```powershell
+.\gradlew.bat :app:testAppDebugUnitTest `
+  --tests "io.legado.app.HunReaderConfigurationTest"
+.\gradlew.bat :app:assembleAppDebug
+```
+
+The Android tests use a receiver packaged only in the test APK and intercept
+outgoing intents, so they do not open a real dictionary or contact a service:
+
+```powershell
+.\gradlew.bat :app:connectedAppDebugAndroidTest `
+  "-Pandroid.testInstrumentationRunnerArguments.class=io.legado.app.TextSelectionAppDeviceTest"
+```
+
+They cover exact payloads, app discovery, invalid/unavailable targets, launch
+errors, preference behavior, backup exclusions, release/cancel gestures,
+selection cleanup, and the normal menu fallback. The gesture fixtures exercise
+the native reader's text-selection path without importing a personal book.
+
+Before declaring Eudic compatibility, separately test with the installed Eudic
+version on a physical device:
+
+- Choose its text-selection action in reading settings and enable automatic
+  opening. Confirm both settings survive an app restart.
+- Hold an English word: nothing launches until release. Release: exactly one
+  dictionary lookup, without expanding a menu or showing a chooser.
+- Long-press and drag a sentence before releasing: the complete selection is
+  sent, including Unicode and paragraph breaks where present.
+- Return to the reader: reading position is unchanged, selection is cleared,
+  and Eudic does not reopen. Selecting the same word again starts a new lookup.
+- Cancel a selection gesture: no lookup. With automatic mode off, verify copy,
+  bookmarks, built-in dictionary, and expanded/collapsed menus still work.
+- Test both TXT and EPUB, scrolling and paginated reading. Verify API 21-22
+  retain normal selection behavior and display the unsupported setting state.
+- Exercise unavailable/disabled targets on a disposable test setup rather than
+  uninstalling a personal dictionary. Confirm visible errors and retained text.
+
+An APK build or an automated receiver test alone does not establish compatibility
+with a particular Eudic release. Record untested device scenarios explicitly.
 
 ## 10. Distribution checklist
 

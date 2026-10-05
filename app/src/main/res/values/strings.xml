@@ -951,6 +951,17 @@
     <string name="open_sys_dir_picker_error">Error opening system folder selector, automatically open application folder selector</string>
     <string name="open_sys_doc_picker_error">Error opening system file selector, automatically open application file selector</string>
     <string name="expand_text_menu">Expand text selection menu</string>
+    <string name="selection_app">Text-selection app</string>
+    <string name="selection_app_none">None</string>
+    <string name="selection_app_summary">Choose an installed app that can process selected text, such as a dictionary.</string>
+    <string name="auto_open_selection_app">Open app automatically after selecting text</string>
+    <string name="auto_open_selection_app_summary">Send selected text to the chosen app when you lift your finger. For a sentence, long-press and drag before releasing. Selection is cleared after the app opens. Turn off to use the normal selection menu.</string>
+    <string name="selection_app_no_apps">No compatible text-selection apps are installed.</string>
+    <string name="selection_app_unsupported">Text-selection apps require Android 6.0 or later.</string>
+    <string name="selection_app_unavailable">The selected app is unavailable. Choose another app or None in reading settings.</string>
+    <string name="selection_app_query_failed">Unable to load text-selection apps.</string>
+    <string name="selection_app_launch_failed">Unable to open the selected app. You can still use the selection menu.</string>
+    <string name="selection_app_empty_text">No text was selected. Select a word or sentence and try again.</string>
     <string name="book_tree_uri_t">Book Save Location</string>
     <string name="book_tree_uri_s">Save location for books opened from other apps</string>
     <string name="select_book_folder">Select the folder where the books are saved</string>

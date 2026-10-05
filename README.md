@@ -40,6 +40,32 @@ is still available. Existing user-created TTS entries are not reset on upgrades.
 Protect exported configurations and backups: they may contain credentials.
 See [privacy policy](app/src/main/assets/privacyPolicy.md) and [API status](api.md).
 
+## Automatic dictionary lookup
+
+In a book's reading-interface settings:
+
+1. Choose **Text-selection app** and select your installed dictionary action,
+   such as Eudic. The list includes apps supporting Android's text-selection
+   integration, not every installed app.
+2. Enable **Open app automatically after selecting text**. It is off by default.
+3. Long-press a word, then lift your finger to send it directly to the app.
+   To look up a sentence, long-press and drag across it **before releasing**.
+
+Successful launches clear the selection. Returning from the dictionary does not
+trigger another lookup. The dictionary controls whether it opens a floating
+window or a full screen.
+
+Turn automatic opening off to use the normal copy, bookmark, built-in dictionary,
+and share menu; your app choice is remembered. Choosing **None** also disables
+automatic opening. The separate **Expand text selection menu** setting continues
+to control the normal menu's layout.
+
+This feature requires Android 6.0 or later. If a selected app is removed or can
+no longer handle text, an error is shown and the selection menu remains
+available. Reselect an app or choose None in reading settings. If your Eudic
+version is not listed, its custom dictionary/share protocols are not supported
+by this integration. Selected text is sent only to the app you explicitly choose.
+
 ## Development
 
 See [Developing HunReader](DEVELOPING.md) for:

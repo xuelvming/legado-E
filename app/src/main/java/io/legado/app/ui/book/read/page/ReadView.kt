@@ -242,7 +242,7 @@ class ReadView(context: Context, attrs: AttributeSet) :
                     }
                 }
                 if (isTextSelected) {
-                    callBack.showTextActionMenu()
+                    callBack.onTextSelectionComplete()
                 } else if (pageDelegate!!.isMoved) {
                     pageDelegate?.onTouch(event)
                 }
@@ -759,6 +759,7 @@ class ReadView(context: Context, attrs: AttributeSet) :
         val isInitFinish: Boolean
         fun showActionMenu()
         fun screenOffTimerStart()
+        fun onTextSelectionComplete()
         fun showTextActionMenu()
         fun autoPageStop()
         fun openChapterList()

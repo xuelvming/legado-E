@@ -2,12 +2,14 @@ package io.legado.app.help.config
 
 import android.content.SharedPreferences
 import android.os.Build
+import androidx.core.content.edit
 import io.legado.app.BuildConfig
 import io.legado.app.constant.AppConst
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
 import io.legado.app.utils.GSON
 import io.legado.app.utils.canvasrecorder.CanvasRecorderFactory
+import io.legado.app.utils.defaultSharedPreferences
 import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.getPrefInt
@@ -502,6 +504,19 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
         set(value) {
             appCtx.putPrefBoolean(PreferKey.showBookshelfFastScroller, value)
         }
+
+    var selectionApp: String
+        get() = appCtx.getPrefString(PreferKey.selectionApp, "").orEmpty()
+        set(value) {
+            appCtx.defaultSharedPreferences.edit {
+                putString(PreferKey.selectionApp, value)
+                if (value.isEmpty()) putBoolean(PreferKey.autoOpenSelectionApp, false)
+            }
+        }
+
+    var autoOpenSelectionApp: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.autoOpenSelectionApp, false)
+        set(value) = appCtx.putPrefBoolean(PreferKey.autoOpenSelectionApp, value)
 
     var contentSelectSpeakMod: Int
         get() = appCtx.getPrefInt(PreferKey.contentSelectSpeakMod)

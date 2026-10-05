@@ -1,6 +1,7 @@
 package io.legado.app
 
 import io.legado.app.data.entities.HttpTTS
+import io.legado.app.constant.PreferKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -82,6 +83,50 @@ class HunReaderConfigurationTest {
             assertFalse(ids.contains("@+id/menu_default"))
             assertFalse(ids.contains("@+id/menu_import_default"))
         }
+    }
+
+    @Test
+    fun automaticTextSelectionIsOptInWithoutChangingTheExistingMenu() {
+        val preferences = elements("res/xml/pref_config_read.xml", "*")
+        fun preference(key: String) = preferences.single {
+            it.getAttributeNS(androidNamespace, "key") == key
+        }
+        assertEquals(
+            "",
+            preference(PreferKey.selectionApp).getAttributeNS(androidNamespace, "defaultValue")
+        )
+        assertEquals(
+            "false",
+            preference(PreferKey.autoOpenSelectionApp).getAttributeNS(androidNamespace, "defaultValue")
+        )
+        assertEquals(
+            "false",
+            preference(PreferKey.expandTextMenu).getAttributeNS(androidNamespace, "defaultValue")
+        )
+        assertEquals(
+            listOf("menu_replace", "menu_copy", "menu_bookmark", "menu_aloud", "menu_dict"),
+            elements("res/menu/content_select_action.xml", "item").take(5).map {
+                it.getAttributeNS(androidNamespace, "id").substringAfter("/")
+            }
+        )
+    }
+
+    @Test
+    fun textSelectionUsesNarrowPackageVisibility() {
+        val queries = elements("AndroidManifest.xml", "queries").single()
+        val intents = queries.getElementsByTagName("intent")
+        val processText = (0 until intents.length).map { intents.item(it) as Element }.single {
+            val actions = it.getElementsByTagName("action")
+            (0 until actions.length).any { index ->
+                (actions.item(index) as Element).getAttributeNS(androidNamespace, "name") ==
+                    "android.intent.action.PROCESS_TEXT"
+            }
+        }
+        val data = processText.getElementsByTagName("data").item(0) as Element
+        assertEquals("text/plain", data.getAttributeNS(androidNamespace, "mimeType"))
+        assertFalse(elements("AndroidManifest.xml", "uses-permission").any {
+            it.getAttributeNS(androidNamespace, "name") == "android.permission.QUERY_ALL_PACKAGES"
+        })
     }
 
     @Test
