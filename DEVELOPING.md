@@ -6,10 +6,10 @@ PowerShell and should be run from the repository root unless stated otherwise.
 
 ## Build identities
 
-| Build | Application ID | Visible name | Signing key |
-| --- | --- | --- | --- |
-| Debug | `io.github.hunterxue.hunreader.debug` | HunReader Debug | Local Android debug key |
-| Release | `io.github.hunterxue.hunreader` | HunReader | Your private HunReader key |
+| Build   | Application ID                          | Visible name    | Signing key                |
+| ------- | --------------------------------------- | --------------- | -------------------------- |
+| Debug   | `io.github.hunterxue.hunreader.debug` | HunReader Debug | Local Android debug key    |
+| Release | `io.github.hunterxue.hunreader`       | HunReader       | Your private HunReader key |
 
 Debug and release builds can be installed together. HunReader also installs
 separately from upstream Legado applications.
