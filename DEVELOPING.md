@@ -363,8 +363,7 @@ The release APK is written below:
 app\build\outputs\apk\app\release\
 ```
 
-A release build fails explicitly if the private signing configuration is absent;
-it never silently uses the debug or historical upstream key.
+> A release build fails explicitly if the private signing configuration is absent; it never silently uses the debug or historical upstream key.
 
 Select and inspect the newest release:
 
@@ -372,6 +371,8 @@ Select and inspect the newest release:
 $releaseApk = Get-ChildItem ".\app\build\outputs\apk\app\release\*.apk" |
     Sort-Object LastWriteTime -Descending |
     Select-Object -First 1
+
+Write-Host $releaseApk
 
 $buildTools = "$env:ANDROID_HOME\build-tools\36.0.0"
 & "$buildTools\aapt.exe" dump badging $releaseApk.FullName |
@@ -542,6 +543,35 @@ Without a connected device, compile the device tests separately:
 ```
 
 Compiling the test APK does not count as executing the gesture tests.
+
+### Reader page-turn gesture regression checks
+
+Paginated reading modes preview a page turn only after a clearly horizontal
+drag. Releasing must be at least 15% of the reading view width from the original
+touch point; shorter drags snap back even when they are fast. Continuous
+vertical scrolling and configured tap actions do not use this release gate.
+
+Run the focused JVM gesture and word-selection checks:
+
+```powershell
+.\gradlew.bat :app:testAppDebugUnitTest `
+  --tests "io.legado.app.ui.book.read.page.PageTurnGestureTest" `
+  --tests "io.legado.app.ui.book.read.page.WordSelectionTest"
+```
+
+Build the app and instrumentation APK, then run the selection gesture checks on
+an authorized device or emulator:
+
+```powershell
+.\gradlew.bat :app:assembleAppDebug :app:assembleAppDebugAndroidTest
+.\gradlew.bat :app:connectedAppDebugAndroidTest `
+  "-Pandroid.testInstrumentationRunnerArguments.class=io.legado.app.TextSelectionAppDeviceTest"
+```
+
+Manually verify curl, cover, slide, and no-animation modes. Check releases just
+below and above 15%, dragging past the threshold and back, small finger drift
+while long-pressing text, side taps, and vertical scrolling. A compiled test APK
+does not substitute for this real gesture validation.
 Windows ARM hosts require a physical Android device for these checks: the
 Android emulator currently requires an x64 Windows host, even when an ARM64
 guest system image is available. See the

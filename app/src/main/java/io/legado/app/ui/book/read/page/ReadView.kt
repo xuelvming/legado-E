@@ -66,6 +66,9 @@ class ReadView(context: Context, attrs: AttributeSet) :
     val defaultAnimationSpeed = 300
     private var pressDown = false
     private var isMove = false
+    private var gestureDownX = 0f
+    private var gestureDownY = 0f
+    private val holdGesture = PageTurnGesture()
 
     //起始点
     var startX: Float = 0f
@@ -84,9 +87,11 @@ class ReadView(context: Context, attrs: AttributeSet) :
 
     //长按
     private var longPressed = false
+    private var longPressAttempted = false
     private val longPressTimeout = 600L
     private val longPressRunnable = Runnable {
         longPressed = true
+        longPressAttempted = true
         onLongPress()
     }
     var isTextSelected = false
@@ -99,6 +104,8 @@ class ReadView(context: Context, attrs: AttributeSet) :
     private val slopSquare by lazy { ViewConfiguration.get(context).scaledTouchSlop }
     private var pageSlopSquare: Int = slopSquare
     var pageSlopSquare2: Int = pageSlopSquare * pageSlopSquare
+    val horizontalPageTouchSlop: Int
+        get() = maxOf(pageSlopSquare, slopSquare * 2)
     private var pageTouchClick: Int = 0
     private val tlRect = RectF()
     private val tcRect = RectF()
@@ -188,7 +195,17 @@ class ReadView(context: Context, attrs: AttributeSet) :
         }
 
         //在多点触控时，事件不走ACTION_DOWN分支而产生的特殊事件处理
-        if (event.actionMasked == MotionEvent.ACTION_POINTER_DOWN || event.actionMasked == MotionEvent.ACTION_POINTER_UP) {
+        if (event.actionMasked == MotionEvent.ACTION_POINTER_DOWN ||
+            event.actionMasked == MotionEvent.ACTION_POINTER_UP
+        ) {
+            if (event.actionMasked == MotionEvent.ACTION_POINTER_DOWN &&
+                pageDelegate is HorizontalPageDelegate
+            ) {
+                isMove = true
+                longPressed = false
+                holdGesture.cancel()
+                removeCallbacks(longPressRunnable)
+            }
             pageDelegate?.onTouch(event)
         }
         when (event.action) {
@@ -203,9 +220,13 @@ class ReadView(context: Context, attrs: AttributeSet) :
                     pressOnTextSelected = false
                 }
                 longPressed = false
+                longPressAttempted = false
                 postDelayed(longPressRunnable, longPressTimeout)
                 pressDown = true
                 isMove = false
+                gestureDownX = event.x
+                gestureDownY = event.y
+                holdGesture.start(event.x, event.y, width.coerceAtLeast(1))
                 pageDelegate?.onTouch(event)
                 pageDelegate?.onDown()
                 setStartPoint(event.x, event.y, false)
@@ -213,29 +234,48 @@ class ReadView(context: Context, attrs: AttributeSet) :
 
             MotionEvent.ACTION_MOVE -> {
                 if (!pressDown) return true
-                val absX = abs(startX - event.x)
-                val absY = abs(startY - event.y)
+                val absX = abs(gestureDownX - event.x)
+                val absY = abs(gestureDownY - event.y)
                 if (!isMove) {
                     isMove = absX > slopSquare || absY > slopSquare
                 }
-                if (isMove) {
+                if (isTextSelected) {
+                    if (isMove) {
+                        selectText(event.x, event.y)
+                    }
+                } else if (pageDelegate is HorizontalPageDelegate) {
+                    if (!longPressAttempted) {
+                        val holdTolerance = slopSquare * 2f
+                        if (!holdGesture.isWithinHoldTolerance(
+                                event.x,
+                                event.y,
+                                holdTolerance
+                            )
+                        ) {
+                            longPressed = false
+                            removeCallbacks(longPressRunnable)
+                        }
+                        pageDelegate?.onTouch(event)
+                        if (pageDelegate?.isMoved == true) {
+                            longPressed = false
+                            removeCallbacks(longPressRunnable)
+                        }
+                    }
+                } else if (isMove) {
                     longPressed = false
                     removeCallbacks(longPressRunnable)
-                    if (isTextSelected) {
-                        selectText(event.x, event.y)
-                    } else {
-                        pageDelegate?.onTouch(event)
-                    }
+                    pageDelegate?.onTouch(event)
                 }
             }
 
             MotionEvent.ACTION_UP -> {
                 callBack.screenOffTimerStart()
                 removeCallbacks(longPressRunnable)
+                holdGesture.cancel()
                 if (!pressDown) return true
                 pressDown = false
                 if (!pageDelegate!!.isMoved && !isMove) {
-                    if (!longPressed && !pressOnTextSelected) {
+                    if (!longPressed && !longPressAttempted && !pressOnTextSelected) {
                         if (!curPage.onClick(startX, startY)) {
                             onSingleTapUp()
                         }
@@ -243,8 +283,8 @@ class ReadView(context: Context, attrs: AttributeSet) :
                     }
                 }
                 if (isTextSelected) {
-                    if (isMove || abs(startX - event.x) > slopSquare ||
-                        abs(startY - event.y) > slopSquare
+                    if (isMove || abs(gestureDownX - event.x) > slopSquare ||
+                        abs(gestureDownY - event.y) > slopSquare
                     ) {
                         selectText(event.x, event.y)
                     }
@@ -258,6 +298,7 @@ class ReadView(context: Context, attrs: AttributeSet) :
 
             MotionEvent.ACTION_CANCEL -> {
                 removeCallbacks(longPressRunnable)
+                holdGesture.cancel()
                 if (!pressDown) return true
                 pressDown = false
                 clearWordSelection()

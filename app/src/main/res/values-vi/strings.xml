@@ -1020,7 +1020,7 @@
     <string name="last_read_time_tag">Thời gian đọc cuối cùng:</string>
     <string name="page_touch_slop_title">Ngưỡng lật trang trượt</string>
     <string name="page_touch_slop_dialog_title">Ngưỡng lật trang trượt (0 = mặc định hệ thống)</string>
-    <string name="page_touch_slop_summary">Trượt bao xa để kích hoạt lật trang (mặc định hệ thống %s px)</string>
+    <string name="page_touch_slop_summary">Khoảng cách tính bằng pixel để bắt đầu xem trước (0 = mặc định hệ thống %s px). Để lật trang, vẫn phải thả sau khi trượt ngang 15%% chiều rộng vùng đọc.</string>
     <string name="check_selected_interval">Chọn khoảng đã chọn</string>
     <string name="show_add_to_shelf_alert_title">Nhắc thêm vào tủ sách khi quay lại</string>
     <string name="show_add_to_shelf_alert_summary">Nhắc thêm vào tủ sách khi quay lại từ việc đọc sách không có trên tủ sách</string>

@@ -7,7 +7,7 @@ import io.legado.app.ui.book.read.page.api.PageFactory
 import io.legado.app.ui.book.read.page.entities.TextPage
 import splitties.init.appCtx
 
-class TextPageFactory(dataSource: DataSource) : PageFactory<TextPage>(dataSource) {
+open class TextPageFactory(dataSource: DataSource) : PageFactory<TextPage>(dataSource) {
 
     private val keepSwipeTip = appCtx.getString(R.string.keep_swipe_tip)
 

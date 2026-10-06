@@ -16,6 +16,7 @@ import android.graphics.Canvas
 import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import androidx.annotation.RequiresApi
 import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
@@ -25,9 +26,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import io.legado.app.constant.AppLog
+import io.legado.app.constant.PageAnim
 import io.legado.app.constant.PreferKey
 import io.legado.app.help.ProcessTextHelp
 import io.legado.app.help.config.AppConfig
+import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.help.storage.BackupConfig
 import io.legado.app.model.ReadBook
 import io.legado.app.ui.book.read.ReadBookActivity
@@ -36,10 +39,12 @@ import io.legado.app.ui.book.read.page.ReadView
 import io.legado.app.ui.book.read.page.ContentTextView
 import io.legado.app.ui.book.read.page.entities.TextLine
 import io.legado.app.ui.book.read.page.entities.TextPage
+import io.legado.app.ui.book.read.page.entities.PageDirection
 import io.legado.app.ui.book.read.page.entities.column.TextColumn
 import io.legado.app.ui.book.read.page.entities.column.TextBaseColumn
 import io.legado.app.ui.book.read.page.entities.column.TextHtmlColumn
 import io.legado.app.ui.book.read.page.provider.ChapterProvider
+import io.legado.app.ui.book.read.page.provider.TextPageFactory
 import io.legado.app.utils.defaultSharedPreferences
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -357,6 +362,72 @@ class TextSelectionAppDeviceTest {
     }
 
     @Test
+    fun smallPreHoldDriftStillSelectsWithoutTurningThePage() {
+        val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+        withReader { scenario, monitor ->
+            beginSelection(
+                scenario,
+                text = "alpha beta gamma",
+                preHoldDriftX = touchSlop + 1f
+            )
+            scenario.onActivity { activity ->
+                assertEquals("alpha", activity.selectedText)
+                assertEquals(0, monitor.hits)
+                assertEquals(PageDirection.NONE, activity.readView.pageDelegate?.mDirection)
+                touch(activity, MotionEvent.ACTION_CANCEL)
+            }
+        }
+    }
+
+    @Test
+    fun paginatedModesRequireFifteenPercentReleaseDistance() {
+        withReader { scenario, _ ->
+            var factory: RecordingPageFactory? = null
+            val previousPageAnim = ReadBookConfig.pageAnim
+            try {
+                scenario.onActivity { activity ->
+                    factory = RecordingPageFactory(activity.readView)
+                    activity.readView.pageFactory = factory!!
+                }
+                for (pageAnim in listOf(
+                    PageAnim.coverPageAnim,
+                    PageAnim.slidePageAnim,
+                    PageAnim.simulationPageAnim,
+                    PageAnim.noAnim
+                )) {
+                    scenario.onActivity { activity ->
+                        ReadBookConfig.pageAnim = pageAnim
+                        activity.readView.upPageAnim()
+                        factory!!.reset()
+                        swipeNext(activity.readView, 0.10f)
+                    }
+                    SystemClock.sleep(450)
+                    instrumentation.waitForIdleSync()
+                    scenario.onActivity {
+                        assertEquals("mode=$pageAnim short swipe", 1, factory!!.index)
+                    }
+
+                    scenario.onActivity { activity ->
+                        factory!!.reset()
+                        swipeNext(activity.readView, 0.16f)
+                    }
+                    SystemClock.sleep(450)
+                    instrumentation.waitForIdleSync()
+                    scenario.onActivity {
+                        assertEquals("mode=$pageAnim threshold swipe", 2, factory!!.index)
+                    }
+                }
+            } finally {
+                scenario.onActivity { activity ->
+                    ReadBookConfig.pageAnim = previousPageAnim
+                    activity.readView.pageFactory = TextPageFactory(activity.readView)
+                    activity.readView.upPageAnim()
+                }
+            }
+        }
+    }
+
+    @Test
     fun draggingShrinksReversesAndExcludesOnlyOuterSeparators() {
         withReader { scenario, monitor ->
             beginSelection(scenario, text = "put  down, now", column = 6)
@@ -516,7 +587,8 @@ class TextSelectionAppDeviceTest {
         column: Int = 1,
         followingLines: List<String> = emptyList(),
         paragraphEnds: Set<Int> = setOf(followingLines.size),
-        html: Boolean = false
+        html: Boolean = false,
+        preHoldDriftX: Float = 0f,
     ) {
         scenario.onActivity { activity ->
             val readView = activity.readView
@@ -551,6 +623,9 @@ class TextSelectionAppDeviceTest {
             }
             readView.curPage.setContent(page)
             touch(activity, MotionEvent.ACTION_DOWN, column)
+            if (preHoldDriftX != 0f) {
+                touchOffset(activity, MotionEvent.ACTION_MOVE, column, preHoldDriftX, 0f)
+            }
         }
         SystemClock.sleep(700)
         scenario.onActivity {
@@ -574,11 +649,22 @@ class TextSelectionAppDeviceTest {
     }
 
     private fun touch(activity: ReadBookActivity, action: Int, column: Int = 1, line: Int = 0) {
+        touchOffset(activity, action, column, 0f, 0f, line)
+    }
+
+    private fun touchOffset(
+        activity: ReadBookActivity,
+        action: Int,
+        column: Int,
+        offsetX: Float,
+        offsetY: Float,
+        line: Int = 0,
+    ) {
         val page = activity.readView.curPage
         val event = MotionEvent.obtain(
             0, SystemClock.uptimeMillis(), action,
-            page.imgBgPaddingStart + 40f + column * 20f,
-            page.headerHeight + ChapterProvider.paddingTop + 60f + line * 80f, 0
+            page.imgBgPaddingStart + 40f + column * 20f + offsetX,
+            page.headerHeight + ChapterProvider.paddingTop + 60f + line * 80f + offsetY, 0
         )
         try {
             activity.readView.onTouchEvent(event)
@@ -594,6 +680,80 @@ class TextSelectionAppDeviceTest {
         } finally {
             event.recycle()
         }
+    }
+
+    private fun swipeNext(readView: ReadView, distanceFraction: Float) {
+        val downX = readView.width * 0.8f
+        val y = readView.height * 0.5f
+        val upX = downX - readView.width * distanceFraction
+        for ((action, x) in listOf(
+            MotionEvent.ACTION_DOWN to downX,
+            MotionEvent.ACTION_MOVE to upX,
+            MotionEvent.ACTION_UP to upX
+        )) {
+            val event = MotionEvent.obtain(
+                0,
+                SystemClock.uptimeMillis(),
+                action,
+                x,
+                y,
+                0
+            )
+            try {
+                readView.onTouchEvent(event)
+            } finally {
+                event.recycle()
+            }
+        }
+    }
+
+    private class RecordingPageFactory(dataSource: ReadView) : TextPageFactory(dataSource) {
+        private val pages = List(3) { index ->
+            TextPage(text = "Page $index", title = "Gesture test").apply {
+                this.index = index
+            }
+        }
+        var index = 1
+            private set
+
+        fun reset() {
+            index = 1
+        }
+
+        override fun moveToFirst() {
+            index = 0
+        }
+
+        override fun moveToLast() {
+            index = pages.lastIndex
+        }
+
+        override fun moveToNext(upContent: Boolean): Boolean {
+            if (!hasNext()) return false
+            index++
+            return true
+        }
+
+        override fun moveToPrev(upContent: Boolean): Boolean {
+            if (!hasPrev()) return false
+            index--
+            return true
+        }
+
+        override val nextPage: TextPage
+            get() = pages[(index + 1).coerceAtMost(pages.lastIndex)]
+        override val prevPage: TextPage
+            get() = pages[(index - 1).coerceAtLeast(0)]
+        override val curPage: TextPage
+            get() = pages[index]
+        override val nextPlusPage: TextPage
+            get() = pages[(index + 2).coerceAtMost(pages.lastIndex)]
+
+        override fun hasNext(): Boolean = index < pages.lastIndex
+
+        override fun hasPrev(): Boolean = index > 0
+
+        override fun hasNextPlus(): Boolean = index < pages.lastIndex - 1
     }
 
     private class RecordingContext(context: Context) : ContextWrapper(context) {

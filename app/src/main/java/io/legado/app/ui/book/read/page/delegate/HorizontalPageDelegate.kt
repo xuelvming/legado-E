@@ -1,6 +1,7 @@
 package io.legado.app.ui.book.read.page.delegate
 
 import android.view.MotionEvent
+import io.legado.app.ui.book.read.page.PageTurnGesture
 import io.legado.app.ui.book.read.page.ReadView
 import io.legado.app.ui.book.read.page.entities.PageDirection
 import io.legado.app.utils.canvasrecorder.CanvasRecorderFactory
@@ -11,7 +12,8 @@ abstract class HorizontalPageDelegate(readView: ReadView) : PageDelegate(readVie
     protected var curRecorder = CanvasRecorderFactory.create()
     protected var prevRecorder = CanvasRecorderFactory.create()
     protected var nextRecorder = CanvasRecorderFactory.create()
-    private val slopSquare get() = readView.pageSlopSquare2
+    private val gesture = PageTurnGesture()
+    private var acceptsTouch = false
 
     override fun setDirection(direction: PageDirection) {
         super.setDirection(direction)
@@ -44,69 +46,85 @@ abstract class HorizontalPageDelegate(readView: ReadView) : PageDelegate(readVie
     }
 
     override fun onTouch(event: MotionEvent) {
-        when (event.action) {
+        when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 abortAnim()
+                gesture.start(event.x, event.y, viewWidth)
+                acceptsTouch = true
             }
 
             MotionEvent.ACTION_MOVE -> {
-                onScroll(event)
+                if (acceptsTouch) {
+                    onScroll(event)
+                }
             }
 
-            MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_UP -> {
-                onAnimStart(readView.defaultAnimationSpeed)
+            MotionEvent.ACTION_UP -> {
+                finishTouch(event, cancelled = false)
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                finishTouch(event, cancelled = true)
+            }
+
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                finishTouch(event, cancelled = true)
             }
         }
     }
 
     private fun onScroll(event: MotionEvent) {
-        val action: Int = event.action
-        val pointerUp =
-            action and MotionEvent.ACTION_MASK == MotionEvent.ACTION_POINTER_UP
-        val skipIndex = if (pointerUp) event.actionIndex else -1
-        // Determine focal point
-        var sumX = 0f
-        var sumY = 0f
-        val count: Int = event.pointerCount
-        for (i in 0 until count) {
-            if (skipIndex == i) continue
-            sumX += event.getX(i)
-            sumY += event.getY(i)
-        }
-        val div = if (pointerUp) count - 1 else count
-        val focusX = sumX / div
-        val focusY = sumY / div
-        //判断是否移动了
         if (!isMoved) {
-            val deltaX = (focusX - startX).toInt()
-            val deltaY = (focusY - startY).toInt()
-            val distance = deltaX * deltaX + deltaY * deltaY
-            isMoved = distance > slopSquare
-            if (isMoved) {
-                if (sumX - startX > 0) {
+            when (gesture.tryStart(
+                event.x,
+                event.y,
+                readView.horizontalPageTouchSlop.toFloat()
+            )) {
+                PageTurnGesture.Direction.PREV -> {
                     //如果上一页不存在
                     if (!hasPrev()) {
                         noNext = true
+                        gesture.cancel()
                         return
                     }
                     setDirection(PageDirection.PREV)
-                } else {
+                }
+
+                PageTurnGesture.Direction.NEXT -> {
                     //如果不存在表示没有下一页了
                     if (!hasNext()) {
                         noNext = true
+                        gesture.cancel()
                         return
                     }
                     setDirection(PageDirection.NEXT)
                 }
-                readView.setStartPoint(event.x, event.y, false)
+
+                PageTurnGesture.Direction.NONE -> return
             }
+            isMoved = true
+            readView.setStartPoint(event.x, event.y, false)
         }
         if (isMoved) {
-            isCancel = if (mDirection == PageDirection.NEXT) sumX > lastX else sumX < lastX
             isRunning = true
             //设置触摸点
-            readView.setTouchPoint(sumX, sumY)
+            readView.setTouchPoint(event.x, event.y)
         }
+    }
+
+    private fun finishTouch(event: MotionEvent, cancelled: Boolean) {
+        if (!acceptsTouch) return
+        acceptsTouch = false
+        if (!isMoved) {
+            gesture.cancel()
+            return
+        }
+        if (!cancelled) {
+            readView.setTouchPoint(event.x, event.y)
+        }
+        isCancel = cancelled || !gesture.shouldCommit(event.x)
+        gesture.cancel()
+        onAnimStart(readView.defaultAnimationSpeed)
     }
 
     override fun abortAnim() {
@@ -128,6 +146,7 @@ abstract class HorizontalPageDelegate(readView: ReadView) : PageDelegate(readVie
     override fun nextPageByAnim(animationSpeed: Int) {
         abortAnim()
         if (!hasNext()) return
+        isCancel = false
         setDirection(PageDirection.NEXT)
         val y = when {
             startY > viewHeight / 2 -> viewHeight.toFloat() * 0.9f
@@ -140,6 +159,7 @@ abstract class HorizontalPageDelegate(readView: ReadView) : PageDelegate(readVie
     override fun prevPageByAnim(animationSpeed: Int) {
         abortAnim()
         if (!hasPrev()) return
+        isCancel = false
         setDirection(PageDirection.PREV)
         readView.setStartPoint(0f, viewHeight.toFloat(), false)
         onAnimStart(animationSpeed)
