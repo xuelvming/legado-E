@@ -4,6 +4,12 @@ This guide covers Android development, local testing, private release signing,
 and installation on a physical device. Commands are written for Windows
 PowerShell and should be run from the repository root unless stated otherwise.
 
+For a codebase tour, start with the
+[architecture and learning guide](docs/README.md). It covers the main modules
+and traces content acquisition, reading, storage/sync and integrations with
+Mermaid diagrams and source links. This development guide focuses on building,
+testing and distributing the application.
+
 ## Build identities
 
 | Build   | Application ID                          | Visible name    | Signing key                |

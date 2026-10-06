@@ -77,6 +77,15 @@ available. Reselect an app or choose None in reading settings. If your Eudic
 version is not listed, its custom dictionary/share protocols are not supported
 by this integration. Selected text is sent only to the app you explicitly choose.
 
+## Architecture and learning guide
+
+Start with the [diagram-first architecture overview](docs/README.md) for the
+application's main features, build modules, runtime components and startup flow.
+Continue with the linked guides to [content sources](docs/content-sources.md),
+the [reader](docs/reader.md), [data and sync](docs/data-and-sync.md), and
+[integrations](docs/integrations.md). Each guide includes Mermaid diagrams and
+links to the implementing code.
+
 ## Development
 
 See [Developing HunReader](DEVELOPING.md) for:
